@@ -114,7 +114,7 @@ void loop(void)
   uint32_t now = millis();
 
   // === STEP 1: Send periodic mDNS queries ===
-  if (now - lastQueryTime >= QUERY_INTERVAL_MS)
+  if (now - lastQueryTime >= CONFIG_QUERY_INTERVAL_MS)
   {
     lastQueryTime = now;
     sendMDNSQuery();

@@ -36,7 +36,7 @@ bool connectToWiFi(void)
 
   while (WiFi.status() != WL_CONNECTED) {
     // Check for timeout
-    if (millis() - START_TIME > WIFI_TIMEOUT_MS) {
+    if (millis() - START_TIME > CONFIG_WIFI_TIMEOUT_MS) {
       DEBUG_PRINTLN(F("\n✗ WiFi connection timeout!"));
       return false;
     }

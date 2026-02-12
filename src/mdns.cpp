@@ -15,7 +15,7 @@
 // ============================================================================
 // STATIC STATE
 // ============================================================================
-static char lastRequestedService[SERVICE_NAME_MAX_LEN] = {0};
+static char lastRequestedService[CONFIG_SERVICE_NAME_MAX_LEN] = {0};
 static DiscoveredConfig discoveredConfig = {{0}, 0, {0}, {0}, 0, {0}, false};
 static IPAddress mdnsMulticastIP(224, 0, 0, 251);
 
@@ -32,7 +32,7 @@ static bool validateResponseService(const byte *packet, int packetSize)
     return false;
   }
 
-  char responseName[SERVICE_NAME_MAX_LEN];
+  char responseName[CONFIG_SERVICE_NAME_MAX_LEN];
   uint16_t pos = 12;
   uint16_t namePos = 0;
 
@@ -288,7 +288,7 @@ static bool buildConfigURL(const DiscoveredConfig &config, char *url, uint16_t m
 
 bool sendMDNSQuery(void)
 {
-  static char serviceName[SERVICE_NAME_MAX_LEN];
+  static char serviceName[CONFIG_SERVICE_NAME_MAX_LEN];
 
   if (!buildServiceName(serviceName, sizeof(serviceName))) {
     return false;

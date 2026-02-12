@@ -13,7 +13,7 @@
 // ============================================================================
 // STATIC BUFFERS
 // ============================================================================
-static byte packetBuffer[PACKET_BUFFER_SIZE];
+static byte packetBuffer[CONFIG_PACKET_BUFFER_SIZE];
 static uint16_t queryTransactionID = 0x1234;
 
 // ============================================================================
@@ -134,9 +134,9 @@ uint16_t buildMDNSQuery(byte *packet, uint16_t maxLen, const char *serviceName)
   }
 
   packet[pos++] = 0x00;
-  packet[pos++] = DNS_TYPE_PTR;
+  packet[pos++] = CONFIG_DNS_TYPE_PTR;
   packet[pos++] = 0x00;
-  packet[pos++] = DNS_CLASS_IN;
+  packet[pos++] = CONFIG_DNS_CLASS_IN;
 
   DEBUG_PRINTF(F("✓ Built query: "), pos);
   DEBUG_PRINTLN(F(" bytes"));
@@ -230,7 +230,7 @@ byte* getPacketBuffer(void)
 
 uint16_t getPacketBufferSize(void)
 {
-  return PACKET_BUFFER_SIZE;
+  return CONFIG_PACKET_BUFFER_SIZE;
 }
 
 uint16_t getNextTransactionID(void)
