@@ -183,7 +183,7 @@ static bool parseAnswerRecords(const byte *packet, int packetSize, uint16_t ques
 
   while (recordsProcessed < ancount && pos < packetSize) {
     uint16_t nameEnd;
-    char recordName[HOSTNAME_MAX_LEN];
+    char recordName[CONFIG_HOSTNAME_MAX_LEN];
 
     if (!decodeDNSName(packet, packetSize, pos, recordName, sizeof(recordName), nameEnd)) {
       DEBUG_PRINTLN(F("✗ Failed to decode record name"));
@@ -372,7 +372,7 @@ void handleMDNSResponse(int packetSize)
 
     if (questionPos < bytesRead) {
       if (parseAnswerRecords(packetBuffer, bytesRead, questionPos, ancount, discoveredConfig)) {
-        char configURL[URL_MAX_LEN];
+        char configURL[CONFIG_URL_MAX_LEN];
         buildConfigURL(discoveredConfig, configURL, sizeof(configURL));
       }
     } else {

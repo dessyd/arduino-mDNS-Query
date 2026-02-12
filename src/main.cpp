@@ -49,7 +49,7 @@ void setup(void)
 
   // Wait for serial port (with timeout for non-USB boards)
   uint32_t serialWaitStart = millis();
-  while (!Serial && millis() - serialWaitStart < SERIAL_WAIT_TIMEOUT)
+  while (!Serial && millis() - serialWaitStart < CONFIG_SERIAL_WAIT_TIMEOUT)
   {
     yield();  // Allow system to process without blocking
   }
