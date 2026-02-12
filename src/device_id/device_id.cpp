@@ -7,16 +7,12 @@
 
 /**
  * Get device serial from ATECC608A crypto chip
- * The serial number is 9 bytes and stored in permanent read-only slots
- *
- * ATECC608A Serial Layout:
- *   Bytes 0-3:  Device SN[0:3]  (manufacturer specific)
- *   Bytes 4-8:  Device SN[4:8]  (unique per chip)
- * Total: 9 bytes → 18 hex characters
+ * Uses library's serialNumber() which reads 12 bytes and formats as hex string
+ * The serial is permanently stored in the chip and cannot be modified
  */
 char* getDeviceSerial(char* buffer, size_t max_len)
 {
-  if (!buffer || max_len < 19) {
+  if (!buffer || max_len < 25) {
     DEBUG_PRINTLN(F("✗ Buffer too small for serial number"));
     return NULL;
   }
@@ -27,39 +23,21 @@ char* getDeviceSerial(char* buffer, size_t max_len)
     return NULL;
   }
 
-  // Read serial number from crypto chip
-  // The serial is permanently stored in the chip and cannot be modified
-  uint8_t serial[9];
+  // Read and format serial number from crypto chip
+  String serial = ECCX08.serialNumber();
 
-  if (!ECCX08.readSlot(0, serial, 9)) {
+  if (serial.length() == 0) {
     DEBUG_PRINTLN(F("✗ Failed to read serial from ATECC608A"));
     ECCX08.end();
     return NULL;
   }
 
-  // Convert 9 bytes to 18-character uppercase hex string
-  size_t pos = 0;
-  for (size_t i = 0; i < 9 && pos < max_len - 1; i++) {
-    pos += snprintf(
-      buffer + pos,
-      max_len - pos,
-      "%02X",
-      serial[i]
-    );
-  }
-
-  buffer[pos] = '\0';
+  // Copy String to buffer
+  serial.toCharArray(buffer, max_len);
   ECCX08.end();
 
   DEBUG_PRINT(F("✓ Device Serial (ATECC608A): "));
   DEBUG_PRINTLN(buffer);
-  DEBUG_PRINT(F("  Raw bytes: "));
-  for (size_t i = 0; i < 9; i++) {
-    if (serial[i] < 0x10) DEBUG_PRINT(F("0"));
-    Serial.print(serial[i], HEX);
-    if (i < 8) DEBUG_PRINT(F(" "));
-  }
-  DEBUG_PRINTLN();
 
   return buffer;
 }
