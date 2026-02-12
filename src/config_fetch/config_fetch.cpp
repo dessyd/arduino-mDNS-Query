@@ -51,6 +51,18 @@ ConfigResponse fetchConfigFromServer(
   DEBUG_PRINT(F("→ Sending GET "));
   DEBUG_PRINTLN(request_url);
 
+  // Debug: Print full HTTP URL
+  #if DEBUG
+  char full_url[768];
+  snprintf(full_url, sizeof(full_url),
+           "http://%s:%u%s",
+           host,
+           port,
+           request_url);
+  DEBUG_PRINT(F("  Full URL: "));
+  DEBUG_PRINTLN(full_url);
+  #endif
+
   // Send HTTP GET request
   client.print(F("GET "));
   client.print(request_url);
