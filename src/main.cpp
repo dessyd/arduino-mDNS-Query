@@ -26,6 +26,18 @@
 #include "mdns/network.h"
 #include "mdns/packet.h"
 #include "mdns/mdns.h"
+#include "device_id/device_id.h"
+#include "config_fetch/config_fetch.h"
+
+// ============================================================================
+// GLOBAL STATE - Device and configuration tracking
+// ============================================================================
+
+static DeviceID device;
+static MQTTConfig mqtt_config;
+static bool config_fetched = false;
+static uint32_t last_config_fetch_attempt = 0;
+static const uint32_t CONFIG_FETCH_RETRY_INTERVAL = 30000;  // Retry every 30s
 
 // ============================================================================
 // SETUP - Initialize hardware, WiFi, and mDNS
@@ -63,6 +75,17 @@ void setup(void)
   if (!connectToWiFi())
   {
     DEBUG_PRINTLN(F("✗ WiFi setup failed - halting"));
+    while (1)
+    {
+      yield();  // Fatal error - halt indefinitely
+    }
+  }
+
+  // Initialize device identification (serial number + MAC address)
+  device = initializeDeviceID();
+  if (!device.valid)
+  {
+    DEBUG_PRINTLN(F("✗ Device ID initialization failed - halting"));
     while (1)
     {
       yield();  // Fatal error - halt indefinitely
@@ -125,6 +148,54 @@ void loop(void)
   if (packetSize > 0)
   {
     handleMDNSResponse(packetSize);
+  }
+
+  // === STEP 3: Fetch config from discovered server ===
+  if (!config_fetched && now - last_config_fetch_attempt >= CONFIG_FETCH_RETRY_INTERVAL)
+  {
+    last_config_fetch_attempt = now;
+
+    const DiscoveredConfig* discovered = getDiscoveredConfig();
+    if (discovered && discovered->valid)
+    {
+      DEBUG_PRINTLN(F(""));
+      DEBUG_PRINT(F("→ Attempting to fetch config from: "));
+      DEBUG_PRINT(discovered->ipStr);
+      DEBUG_PRINT(F(":"));
+      DEBUG_PRINTLN(discovered->port);
+
+      // Fetch configuration from server
+      ConfigResponse response = fetchConfigFromServer(
+          discovered->ipStr,
+          discovered->port,
+          &device
+      );
+
+      if (response.success)
+      {
+        // Parse the JSON configuration
+        mqtt_config = parseConfigJSON(response.config_json);
+        config_fetched = true;
+
+        DEBUG_PRINTLN(F(""));
+        DEBUG_PRINTLN(F("=== CONFIGURATION SUCCESSFULLY RETRIEVED ==="));
+        DEBUG_PRINT(F("MQTT Broker: "));
+        DEBUG_PRINTLN(mqtt_config.mqtt_broker);
+        DEBUG_PRINT(F("MQTT Port: "));
+        DEBUG_PRINTLN(mqtt_config.mqtt_port);
+        DEBUG_PRINT(F("MQTT Topic: "));
+        DEBUG_PRINTLN(mqtt_config.mqtt_topic);
+        DEBUG_PRINT(F("Poll Interval: "));
+        DEBUG_PRINT(mqtt_config.poll_frequency_sec);
+        DEBUG_PRINTLN(F(" seconds"));
+        DEBUG_PRINTLN(F("=== Configuration ready for use ==="));
+      }
+      else
+      {
+        DEBUG_PRINT(F("✗ Failed to fetch config: "));
+        DEBUG_PRINTLN(response.error_msg);
+      }
+    }
   }
 
   // Loop runs continuously - WiFi interrupts handled by hardware
