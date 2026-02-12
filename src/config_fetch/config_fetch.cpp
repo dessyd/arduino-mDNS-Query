@@ -41,6 +41,8 @@ ConfigResponse fetchConfigFromServer(
     return response;
   }
 
+  DEBUG_PRINTLN(F("✓ Connected"));
+
   // Build request URL with parameters
   char request_url[512];
   snprintf(request_url, sizeof(request_url),
@@ -48,18 +50,15 @@ ConfigResponse fetchConfigFromServer(
            device_id->device_id,
            device_id->mac_address);
 
-  DEBUG_PRINT(F("→ Sending GET "));
-  DEBUG_PRINTLN(request_url);
-
-  // Debug: Print full HTTP URL
+  // Debug: Print full HTTP GET request URL
   #if DEBUG
   char full_url[768];
   snprintf(full_url, sizeof(full_url),
-           "http://%s:%u%s",
+           "GET http://%s:%u%s HTTP/1.1",
            host,
            port,
            request_url);
-  DEBUG_PRINT(F("  Full URL: "));
+  DEBUG_PRINT(F("→ Sending: "));
   DEBUG_PRINTLN(full_url);
   #endif
 
