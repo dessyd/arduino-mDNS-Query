@@ -8,8 +8,9 @@
 // STATIC STATE - MQTT Connection and Status
 // ============================================================================
 
-// Use WiFiSSLClient for TLS/SSL connections (port 8883)
-static WiFiSSLClient wifiClient;
+// Use WiFiClient for non-TLS connections (port 1883)
+// For TLS connections (port 8883), certificate validation is required
+static WiFiClient wifiClient;
 static MqttClient mqttClient(wifiClient);
 static MQTTStatus mqtt_status = MQTT_DISCONNECTED;
 static MQTTConfig mqtt_config_copy;
@@ -47,14 +48,22 @@ bool initMQTT(const MQTTConfig* config)
   mqttClient.setId(F("arduino-mdns-query"));
   mqttClient.setUsernamePassword(nullptr, nullptr);
 
-  // Note: WiFiSSLClient requires proper certificate setup for port 8883
-  // For testing, consider using port 1883 (non-TLS) if your broker supports it
+  // Port selection guidance
+  DEBUG_PRINTLN(F(""));
+  if (mqtt_config_copy.mqtt_port == 8883)
+  {
+    DEBUG_PRINTLN(F("  ⚠ Port 8883 detected (TLS/SSL required)"));
+    DEBUG_PRINTLN(F("  For testing without TLS, modify config to use port 1883"));
+  }
+  else if (mqtt_config_copy.mqtt_port == 1883)
+  {
+    DEBUG_PRINTLN(F("  ✓ Port 1883 detected (non-TLS, standard MQTT)"));
+  }
 
   mqtt_status = MQTT_CONNECTING;
   mqtt_initialized = true;
 
   DEBUG_PRINTLN(F("✓ MQTT initialized and ready to connect"));
-  DEBUG_PRINTLN(F("  Note: Port 8883 requires TLS certificate validation"));
   return true;
 }
 
@@ -79,17 +88,43 @@ MQTTStatus maintainMQTT()
       DEBUG_PRINT(F(":"));
       DEBUG_PRINTLN(mqtt_config_copy.mqtt_port);
 
+      uint16_t port_to_try = mqtt_config_copy.mqtt_port;
+
       if (!mqttClient.connect(
           mqtt_config_copy.mqtt_broker,
-          mqtt_config_copy.mqtt_port))
+          port_to_try))
       {
-        mqtt_status = MQTT_DISCONNECTED;
-        DEBUG_PRINTLN(F("✗ MQTT connection failed"));
-        return mqtt_status;
+        // Fallback: If configured for TLS port (8883), try non-TLS port (1883)
+        if (port_to_try == 8883)
+        {
+          DEBUG_PRINTLN(F("  → Port 8883 failed (requires TLS)"));
+          DEBUG_PRINTLN(F("  → Trying fallback port 1883 (non-TLS)..."));
+
+          port_to_try = 1883;
+          if (!mqttClient.connect(
+              mqtt_config_copy.mqtt_broker,
+              port_to_try))
+          {
+            mqtt_status = MQTT_DISCONNECTED;
+            DEBUG_PRINTLN(F("✗ Connection failed on both ports"));
+            return mqtt_status;
+          }
+
+          DEBUG_PRINTLN(F("✓ Connected on fallback port 1883 (non-TLS)"));
+        }
+        else
+        {
+          mqtt_status = MQTT_DISCONNECTED;
+          DEBUG_PRINTLN(F("✗ MQTT connection failed"));
+          return mqtt_status;
+        }
       }
 
       mqtt_status = MQTT_CONNECTED;
-      DEBUG_PRINTLN(F("✓ Connected to MQTT broker"));
+      if (port_to_try == mqtt_config_copy.mqtt_port)
+      {
+        DEBUG_PRINTLN(F("✓ Connected to MQTT broker"));
+      }
     }
   }
 
