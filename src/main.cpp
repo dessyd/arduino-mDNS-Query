@@ -28,6 +28,7 @@
 #include "mdns/mdns.h"
 #include "device_id/device_id.h"
 #include "config_fetch/config_fetch.h"
+#include "mqtt/mqtt_publish.h"
 
 // ============================================================================
 // GLOBAL STATE - Device and configuration tracking
@@ -38,6 +39,10 @@ static MQTTConfig mqtt_config;
 static bool config_fetched = false;
 static uint32_t last_config_fetch_attempt = 0;
 static const uint32_t CONFIG_FETCH_RETRY_INTERVAL = 30000;  // Retry every 30s
+
+static bool mqtt_initialized = false;
+static uint32_t last_publish_time = 0;
+static const uint32_t PUBLISH_INTERVAL = 10000;  // Publish every 10s
 
 // ============================================================================
 // SETUP - Initialize hardware, WiFi, and mDNS
@@ -151,6 +156,8 @@ void loop(void)
   }
 
   // === STEP 3: Fetch config from discovered server ===
+  // (Waits CONFIG_FETCH_RETRY_INTERVAL before first attempt to allow mDNS discovery)
+
   if (!config_fetched && now - last_config_fetch_attempt >= CONFIG_FETCH_RETRY_INTERVAL)
   {
     last_config_fetch_attempt = now;
@@ -189,12 +196,50 @@ void loop(void)
         DEBUG_PRINT(mqtt_config.poll_frequency_sec);
         DEBUG_PRINTLN(F(" seconds"));
         DEBUG_PRINTLN(F("=== Configuration ready for use ==="));
+
+        // Initialize MQTT connection
+        if (initMQTT(&mqtt_config))
+        {
+          mqtt_initialized = true;
+          DEBUG_PRINTLN(F("✓ MQTT module initialized"));
+        }
+        else
+        {
+          DEBUG_PRINTLN(F("✗ Failed to initialize MQTT"));
+        }
       }
       else
       {
         DEBUG_PRINT(F("✗ Failed to fetch config: "));
         DEBUG_PRINTLN(response.error_msg);
       }
+    }
+    else
+    {
+      DEBUG_PRINTLN(F("⚠ No valid server discovered yet..."));
+    }
+  }
+
+  // === STEP 4: MQTT connection and publishing ===
+  if (mqtt_initialized)
+  {
+    // Maintain MQTT connection
+    MQTTStatus mqtt_status = maintainMQTT();
+
+    // Publish dummy data at regular intervals
+    if (isMQTTReady() && now - last_publish_time >= PUBLISH_INTERVAL)
+    {
+      last_publish_time = now;
+
+      // Create dummy JSON payload with device info
+      char payload[256];
+      snprintf(payload, sizeof(payload),
+               "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu,\"temperature\":23.5,\"humidity\":45}",
+               device.device_id,
+               device.mac_address,
+               now / 1000);
+
+      publishToMQTT(nullptr, payload);
     }
   }
 
