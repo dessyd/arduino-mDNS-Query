@@ -2,7 +2,7 @@
 #define CONFIG_FETCH_H
 
 #include <Arduino.h>
-#include "device_id.h"
+#include "device_id/device_id.h"
 
 /**
  * HTTP GET request to fetch configuration

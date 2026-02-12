@@ -23,10 +23,9 @@
  * ============================================================================
  */
 
-#include "config.h"
-#include "network.h"
-#include "packet.h"
-#include "mdns.h"
+#include "mdns/network.h"
+#include "mdns/packet.h"
+#include "mdns/mdns.h"
 
 // ============================================================================
 // SETUP - Initialize hardware, WiFi, and mDNS

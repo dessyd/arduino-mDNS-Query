@@ -5,8 +5,9 @@
  * DNS packet building and parsing
  */
 
-#include "packet.h"
-#include "config.h"
+#include <Arduino.h>
+#include "mdns/packet.h"
+#include "arduino_configs.h"
 #include <string.h>
 #include <stdio.h>
 

@@ -5,8 +5,9 @@
  * WiFi and mDNS initialization
  */
 
-#include "network.h"
-#include "config.h"
+#include <Arduino.h>
+#include "mdns/network.h"
+#include "arduino_configs.h"
 #include "arduino_secrets.h"
 
 #include <WiFiNINA.h>

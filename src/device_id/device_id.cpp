@@ -1,5 +1,6 @@
-#include "device_id.h"
-#include "config.h"
+#include <Arduino.h>
+#include "device_id/device_id.h"
+#include "arduino_configs.h"
 #include <WiFiNINA.h>
 
 #include <ArduinoECCX08.h>

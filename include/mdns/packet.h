@@ -8,8 +8,9 @@
 #ifndef PACKET_H
 #define PACKET_H
 
+#include <Arduino.h>
 #include <stdint.h>
-#include "config.h"
+#include "arduino_configs.h"
 
 /**
  * Build mDNS service name from configuration

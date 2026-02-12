@@ -1,22 +1,15 @@
 /**
  * ============================================================================
- * Configuration Header - mDNS Service Discovery
+ * mDNS Module Header
  * ============================================================================
- * Local configuration and data structures
- * All CONFIG_* constants are centralized in include/arduino_configs.h
+ * mDNS query sending and response handling
  */
 
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef MDNS_H
+#define MDNS_H
 
 #include <Arduino.h>
-#include <stdint.h>
-#include <stddef.h>
 #include "arduino_configs.h"
-
-// ============================================================================
-// DATA STRUCTURES
-// ============================================================================
 
 /**
  * Discovered Service Configuration
@@ -32,4 +25,38 @@ typedef struct {
   bool valid;                                // All required fields populated
 } DiscoveredConfig;
 
-#endif  // CONFIG_H
+/**
+ * Send mDNS service discovery PTR query
+ *
+ * Builds and sends a PTR query to the mDNS multicast group (224.0.0.251:5353)
+ * for the configured service type.
+ *
+ * RETURNS:
+ *   true  - Query sent successfully
+ *   false - Failed to build or send query
+ */
+bool sendMDNSQuery(void);
+
+/**
+ * Handle incoming mDNS response packet
+ *
+ * Processes received UDP packet:
+ *   - Validates packet size and header
+ *   - Validates response matches requested service
+ *   - Extracts answer records (SRV, TXT, A)
+ *   - Builds configuration URL
+ *
+ * PARAMETERS:
+ *   packetSize - Size of received UDP packet in bytes
+ */
+void handleMDNSResponse(int packetSize);
+
+/**
+ * Get the last discovered configuration
+ *
+ * RETURNS:
+ *   Pointer to DiscoveredConfig struct
+ */
+const DiscoveredConfig* getDiscoveredConfig(void);
+
+#endif  // MDNS_H

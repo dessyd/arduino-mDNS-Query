@@ -5,10 +5,11 @@
  * mDNS query and response handling
  */
 
-#include "mdns.h"
-#include "packet.h"
-#include "network.h"
-#include "config.h"
+#include <Arduino.h>
+#include "mdns/mdns.h"
+#include "mdns/packet.h"
+#include "mdns/network.h"
+#include "arduino_configs.h"
 #include <string.h>
 #include <stdio.h>
 

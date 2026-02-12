@@ -8,6 +8,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include <Arduino.h>
 #include <stdint.h>
 #include <WiFiUdp.h>
 

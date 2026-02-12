@@ -1,5 +1,6 @@
-#include "config_fetch.h"
-#include "config.h"
+#include <Arduino.h>
+#include "config_fetch/config_fetch.h"
+#include "arduino_configs.h"
 #include <WiFiNINA.h>
 #include <ArduinoJson.h>
 
