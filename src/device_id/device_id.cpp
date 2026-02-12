@@ -7,12 +7,17 @@
 
 /**
  * Get device serial from ATECC608A crypto chip
- * Uses library's serialNumber() which reads 12 bytes and formats as hex string
+ * Uses library's serialNumber() and extracts first 9 bytes (18 hex chars)
  * The serial is permanently stored in the chip and cannot be modified
+ *
+ * ATECC608A Serial (12 bytes total):
+ *   Bytes 0-3: Revision/Config
+ *   Bytes 4-12: Unique serial number
+ * We use first 9 bytes to maintain server compatibility
  */
 char* getDeviceSerial(char* buffer, size_t max_len)
 {
-  if (!buffer || max_len < 25) {
+  if (!buffer || max_len < 19) {
     DEBUG_PRINTLN(F("✗ Buffer too small for serial number"));
     return NULL;
   }
@@ -23,17 +28,17 @@ char* getDeviceSerial(char* buffer, size_t max_len)
     return NULL;
   }
 
-  // Read and format serial number from crypto chip
+  // Read serial number from crypto chip (12 bytes = 24 hex chars)
   String serial = ECCX08.serialNumber();
 
-  if (serial.length() == 0) {
-    DEBUG_PRINTLN(F("✗ Failed to read serial from ATECC608A"));
+  if (serial.length() < 18) {
+    DEBUG_PRINTLN(F("✗ Failed to read complete serial from ATECC608A"));
     ECCX08.end();
     return NULL;
   }
 
-  // Copy String to buffer
-  serial.toCharArray(buffer, max_len);
+  // Use only first 9 bytes (18 hex characters) for server compatibility
+  serial.substring(0, 18).toCharArray(buffer, max_len);
   ECCX08.end();
 
   DEBUG_PRINT(F("✓ Device Serial (ATECC608A): "));
