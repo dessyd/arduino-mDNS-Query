@@ -140,6 +140,32 @@ void loop(void)
   static uint32_t lastQueryTime = 0;
   uint32_t now = millis();
 
+  // === IF CONFIG ALREADY FETCHED: FOCUS ON MQTT ===
+  if (config_fetched)
+  {
+    // Maintain MQTT connection
+    MQTTStatus mqtt_status = maintainMQTT();
+
+    // Publish dummy data at regular intervals
+    if (isMQTTReady() && now - last_publish_time >= PUBLISH_INTERVAL)
+    {
+      last_publish_time = now;
+
+      // Create dummy JSON payload with device info
+      char payload[256];
+      snprintf(payload, sizeof(payload),
+               "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu,\"temperature\":23.5,\"humidity\":45}",
+               device.device_id,
+               device.mac_address,
+               now / 1000);
+
+      publishToMQTT(nullptr, payload);
+    }
+    return;  // Skip remaining config discovery code
+  }
+
+  // === IF NO CONFIG YET: DISCOVER AND FETCH ===
+
   // === STEP 1: Send periodic mDNS queries ===
   if (now - lastQueryTime >= CONFIG_QUERY_INTERVAL_MS)
   {
@@ -158,7 +184,7 @@ void loop(void)
   // === STEP 3: Fetch config from discovered server ===
   // (Waits CONFIG_FETCH_RETRY_INTERVAL before first attempt to allow mDNS discovery)
 
-  if (!config_fetched && now - last_config_fetch_attempt >= CONFIG_FETCH_RETRY_INTERVAL)
+  if (now - last_config_fetch_attempt >= CONFIG_FETCH_RETRY_INTERVAL)
   {
     last_config_fetch_attempt = now;
 
@@ -195,13 +221,14 @@ void loop(void)
         DEBUG_PRINT(F("Poll Interval: "));
         DEBUG_PRINT(mqtt_config.poll_frequency_sec);
         DEBUG_PRINTLN(F(" seconds"));
-        DEBUG_PRINTLN(F("=== Configuration ready for use ==="));
+        DEBUG_PRINTLN(F(""));
 
         // Initialize MQTT connection
         if (initMQTT(&mqtt_config))
         {
           mqtt_initialized = true;
           DEBUG_PRINTLN(F("✓ MQTT module initialized"));
+          DEBUG_PRINTLN(F("✓ Switching to MQTT publishing mode..."));
         }
         else
         {
@@ -219,29 +246,4 @@ void loop(void)
       DEBUG_PRINTLN(F("⚠ No valid server discovered yet..."));
     }
   }
-
-  // === STEP 4: MQTT connection and publishing ===
-  if (mqtt_initialized)
-  {
-    // Maintain MQTT connection
-    MQTTStatus mqtt_status = maintainMQTT();
-
-    // Publish dummy data at regular intervals
-    if (isMQTTReady() && now - last_publish_time >= PUBLISH_INTERVAL)
-    {
-      last_publish_time = now;
-
-      // Create dummy JSON payload with device info
-      char payload[256];
-      snprintf(payload, sizeof(payload),
-               "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu,\"temperature\":23.5,\"humidity\":45}",
-               device.device_id,
-               device.mac_address,
-               now / 1000);
-
-      publishToMQTT(nullptr, payload);
-    }
-  }
-
-  // Loop runs continuously - WiFi interrupts handled by hardware
 }

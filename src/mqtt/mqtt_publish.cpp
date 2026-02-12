@@ -8,7 +8,8 @@
 // STATIC STATE - MQTT Connection and Status
 // ============================================================================
 
-static WiFiClient wifiClient;
+// Use WiFiSSLClient for TLS/SSL connections (port 8883)
+static WiFiSSLClient wifiClient;
 static MqttClient mqttClient(wifiClient);
 static MQTTStatus mqtt_status = MQTT_DISCONNECTED;
 static MQTTConfig mqtt_config_copy;
@@ -46,10 +47,14 @@ bool initMQTT(const MQTTConfig* config)
   mqttClient.setId(F("arduino-mdns-query"));
   mqttClient.setUsernamePassword(nullptr, nullptr);
 
+  // Note: WiFiSSLClient requires proper certificate setup for port 8883
+  // For testing, consider using port 1883 (non-TLS) if your broker supports it
+
   mqtt_status = MQTT_CONNECTING;
   mqtt_initialized = true;
 
   DEBUG_PRINTLN(F("✓ MQTT initialized and ready to connect"));
+  DEBUG_PRINTLN(F("  Note: Port 8883 requires TLS certificate validation"));
   return true;
 }
 
@@ -68,12 +73,18 @@ MQTTStatus maintainMQTT()
   {
     if (!mqttClient.connected())
     {
-      // Attempt connection
+      // Attempt connection with debug output
+      DEBUG_PRINT(F("→ Connecting to MQTT broker: "));
+      DEBUG_PRINT(mqtt_config_copy.mqtt_broker);
+      DEBUG_PRINT(F(":"));
+      DEBUG_PRINTLN(mqtt_config_copy.mqtt_port);
+
       if (!mqttClient.connect(
           mqtt_config_copy.mqtt_broker,
           mqtt_config_copy.mqtt_port))
       {
         mqtt_status = MQTT_DISCONNECTED;
+        DEBUG_PRINTLN(F("✗ MQTT connection failed"));
         return mqtt_status;
       }
 
@@ -90,6 +101,10 @@ MQTTStatus maintainMQTT()
   }
   else
   {
+    if (mqtt_status == MQTT_CONNECTED)
+    {
+      DEBUG_PRINTLN(F("✗ MQTT connection lost"));
+    }
     mqtt_status = MQTT_DISCONNECTED;
   }
 
