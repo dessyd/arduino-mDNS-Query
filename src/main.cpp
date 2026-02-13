@@ -29,6 +29,7 @@
 #include "device_id/device_id.h"
 #include "config_fetch/config_fetch.h"
 #include "mqtt/mqtt_publish.h"
+#include "sensors/sensors.h"
 
 // ============================================================================
 // GLOBAL STATE - Device and configuration tracking
@@ -43,6 +44,9 @@ static const uint32_t CONFIG_FETCH_RETRY_INTERVAL = 30000;  // Retry every 30s
 static bool mqtt_initialized = false;
 static uint32_t last_publish_time = 0;
 static const uint32_t PUBLISH_INTERVAL = 10000;  // Publish every 10s
+
+static SensorReadings sensor_data;
+static bool sensors_initialized = false;
 
 // ============================================================================
 // SETUP - Initialize hardware, WiFi, and mDNS
@@ -113,6 +117,18 @@ void setup(void)
     DEBUG_PRINTLN(F("⚠ Initial query failed, retrying in loop"));
   }
 
+  // Initialize environmental sensors
+  if (!initSensors())
+  {
+    DEBUG_PRINTLN(F("⚠ Sensor initialization failed - will publish without sensor data"));
+    sensors_initialized = false;
+  }
+  else
+  {
+    sensors_initialized = true;
+    DEBUG_PRINTLN(F("✓ Environmental sensors initialized"));
+  }
+
   DEBUG_PRINTLN(F("✓ Setup complete - entering main loop"));
 }
 
@@ -146,18 +162,48 @@ void loop(void)
     // Maintain MQTT connection
     MQTTStatus mqtt_status = maintainMQTT();
 
-    // Publish dummy data at regular intervals
+    // Publish sensor data at regular intervals
     if (isMQTTReady() && now - last_publish_time >= PUBLISH_INTERVAL)
     {
       last_publish_time = now;
 
-      // Create dummy JSON payload with device info
-      char payload[256];
-      snprintf(payload, sizeof(payload),
-               "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu,\"temperature\":23.5,\"humidity\":45}",
-               device.device_id,
-               device.mac_address,
-               now / 1000);
+      char payload[512];  // Increased from 256 to accommodate full sensor data
+
+      // Read and publish sensor data if available
+      if (sensors_initialized && readSensors(&sensor_data))
+      {
+        // Format sensor readings as JSON
+        char sensor_json[256];
+        if (formatSensorJSON(&sensor_data, sensor_json, sizeof(sensor_json)))
+        {
+          // Combine device info + sensor data
+          // sensor_json is like: {"temperature":23.5,"humidity":45.2,...}
+          // We skip the opening brace and insert after device fields
+          snprintf(payload, sizeof(payload),
+                   "{\"device_id\":\"%s\",\"mac\":\"%s\",%s",
+                   device.device_id,
+                   device.mac_address,
+                   sensor_json + 1);  // Skip opening brace from sensor JSON
+        }
+        else
+        {
+          // JSON formatting failed, fall back to device info only
+          snprintf(payload, sizeof(payload),
+                   "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu}",
+                   device.device_id,
+                   device.mac_address,
+                   now / 1000);
+        }
+      }
+      else
+      {
+        // Sensors not available or read failed, publish device info only
+        snprintf(payload, sizeof(payload),
+                 "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu}",
+                 device.device_id,
+                 device.mac_address,
+                 now / 1000);
+      }
 
       publishToMQTT(nullptr, payload);
     }
