@@ -29,13 +29,12 @@ typedef enum {
 
 /**
  * Initialize RTC hardware
- * Starts the real-time clock with fallback time
+ * Starts the real-time clock at epoch 0 (Jan 1, 1970)
+ * RTC will be synced with network time via WiFiNINA on first successful sync
  *
  * Returns:
  *   true if RTC initialized successfully
  *   false if initialization failed
- *
- * Note: This uses a bootstrap timestamp to get a reasonable starting point
  */
 bool initRTC(void);
 

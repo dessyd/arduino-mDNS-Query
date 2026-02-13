@@ -17,54 +17,6 @@ static uint32_t last_sync_timestamp = 0;
 // CONFIG_RTC_CONFIG_RTC_SYNC_INTERVAL_MS and CONFIG_RTC_CONFIG_RTC_BOOTSTRAP_TIMESTAMP
 
 // ============================================================================
-// HELPER FUNCTIONS - Time Conversion
-// ============================================================================
-
-/**
- * Convert year/month/day to days since epoch (Jan 1, 1970)
- * Simplified calculation - good enough for 1970-2100
- */
-static uint32_t dateToDays(uint16_t year, uint8_t month, uint8_t day)
-{
-  // Days per month (non-leap year)
-  static const uint8_t daysPerMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-
-  // Calculate days from 1970 to start of this year
-  uint32_t days = 0;
-  for (uint16_t y = 1970; y < year; y++)
-  {
-    days += (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? 366 : 365;
-  }
-
-  // Add days for months in this year
-  bool isLeapYear = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
-  for (uint8_t m = 1; m < month; m++)
-  {
-    days += daysPerMonth[m - 1];
-    if (m == 2 && isLeapYear)
-    {
-      days++;
-    }
-  }
-
-  // Add days in this month
-  days += day - 1;
-
-  return days;
-}
-
-/**
- * Convert days since epoch + time components to Unix timestamp
- */
-static uint32_t toUnixTimestamp(uint16_t year, uint8_t month, uint8_t day,
-                                 uint8_t hour, uint8_t minute, uint8_t second)
-{
-  uint32_t days = dateToDays(year, month, day);
-  uint32_t timestamp = (days * 86400UL) + (hour * 3600UL) + (minute * 60UL) + second;
-  return timestamp;
-}
-
-// ============================================================================
 // PUBLIC API IMPLEMENTATION
 // ============================================================================
 
@@ -80,20 +32,14 @@ bool initRTC(void)
   // Initialize RTC
   rtc.begin();
 
-  // Set bootstrap time (2026-02-13 00:00:00 UTC)
-  // This provides a reasonable starting point before network sync
-  uint32_t bootstrap_days = CONFIG_RTC_BOOTSTRAP_TIMESTAMP / 86400;
-  uint32_t bootstrap_secs = CONFIG_RTC_BOOTSTRAP_TIMESTAMP % 86400;
-
-  // Simple approximation: 2026-02-13
-  rtc.setEpoch(CONFIG_RTC_BOOTSTRAP_TIMESTAMP);
+  // RTC starts at epoch 0 (Jan 1, 1970)
+  // Will be synced with network time via WiFiNINA on first successful sync
+  rtc.setEpoch(0);
 
   rtc_status = RTC_INITIALIZED;
-  last_sync_timestamp = CONFIG_RTC_BOOTSTRAP_TIMESTAMP;
+  last_sync_timestamp = 0;
 
-  DEBUG_PRINTLN(F("✓ RTCZero initialized with bootstrap timestamp"));
-  DEBUG_PRINT(F("  Bootstrap time: "));
-  DEBUG_PRINTLN(CONFIG_RTC_BOOTSTRAP_TIMESTAMP);
+  DEBUG_PRINTLN(F("✓ RTCZero initialized"));
 
   return true;
 }
