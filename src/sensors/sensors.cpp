@@ -172,7 +172,7 @@ bool readSensors(SensorReadings* readings)
   // Read Temperature
   if (last_valid_readings.temp_valid)
   {
-    readings->temperature = ENV.readTemperature();
+    readings->temperature = ENV.readTemperature(CELSIUS);
     if (!isnan(readings->temperature))
     {
       readings->temp_valid = true;
@@ -192,7 +192,7 @@ bool readSensors(SensorReadings* readings)
   // Read Pressure
   if (last_valid_readings.pressure_valid)
   {
-    readings->pressure = ENV.readPressure();
+    readings->pressure = ENV.readPressure(MILLIBAR);
     if (!isnan(readings->pressure))
     {
       readings->pressure_valid = true;
@@ -202,7 +202,7 @@ bool readSensors(SensorReadings* readings)
   // Read Light Intensity
   if (last_valid_readings.light_valid)
   {
-    readings->illuminance = ENV.readIlluminance();
+    readings->illuminance = ENV.readIlluminance(LUX);
     if (!isnan(readings->illuminance) && readings->illuminance >= 0)
     {
       readings->light_valid = true;
@@ -272,28 +272,28 @@ char* formatSensorJSON(const SensorReadings* readings,
   if (readings->temp_valid)
   {
     offset += snprintf(buffer + offset, buffer_size - offset,
-                       "\"temperature\":%.1f,", readings->temperature);
+                       "\"temperature_celsius\":%.1f,", readings->temperature);
   }
 
   // Add humidity if valid
   if (readings->humidity_valid)
   {
     offset += snprintf(buffer + offset, buffer_size - offset,
-                       "\"humidity\":%.1f,", readings->humidity);
+                       "\"humidity_percent\":%.1f,", readings->humidity);
   }
 
   // Add pressure if valid
   if (readings->pressure_valid)
   {
     offset += snprintf(buffer + offset, buffer_size - offset,
-                       "\"pressure\":%.1f,", readings->pressure);
+                       "\"pressure_millibar\":%.1f,", readings->pressure);
   }
 
   // Add illuminance if valid
   if (readings->light_valid)
   {
     offset += snprintf(buffer + offset, buffer_size - offset,
-                       "\"illuminance\":%.1f,", readings->illuminance);
+                       "\"illuminance_lux\":%.1f,", readings->illuminance);
   }
 
   // Add UV index if valid
