@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: markdownlint
+        name: markdownlint
+        entry: markdownlint-cli2 --config config/.markdownlint-cli2.jsonc
+        language: system
+        types: [markdown]
+        stages: [commit]
