@@ -167,41 +167,29 @@ void loop(void)
     {
       last_publish_time = now;
 
-      char payload[512];  // Increased from 256 to accommodate full sensor data
+      char payload[256];  // Sensor data JSON (device_id in topic, not payload)
 
       // Read and publish sensor data if available
       if (sensors_initialized && readSensors(&sensor_data))
       {
         // Format sensor readings as JSON
-        char sensor_json[256];
-        if (formatSensorJSON(&sensor_data, sensor_json, sizeof(sensor_json)))
+        if (formatSensorJSON(&sensor_data, payload, sizeof(payload)))
         {
-          // Combine device info + sensor data
-          // sensor_json is like: {"temperature":23.5,"humidity":45.2,...}
-          // We skip the opening brace and insert after device fields
-          snprintf(payload, sizeof(payload),
-                   "{\"device_id\":\"%s\",\"mac\":\"%s\",%s",
-                   device.device_id,
-                   device.mac_address,
-                   sensor_json + 1);  // Skip opening brace from sensor JSON
+          // sensor_json is already in correct format
         }
         else
         {
-          // JSON formatting failed, fall back to device info only
+          // JSON formatting failed, fall back to minimal payload
           snprintf(payload, sizeof(payload),
-                   "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu}",
-                   device.device_id,
-                   device.mac_address,
+                   "{\"timestamp\":%lu}",
                    now / 1000);
         }
       }
       else
       {
-        // Sensors not available or read failed, publish device info only
+        // Sensors not available or read failed, publish timestamp only
         snprintf(payload, sizeof(payload),
-                 "{\"device_id\":\"%s\",\"mac\":\"%s\",\"timestamp\":%lu}",
-                 device.device_id,
-                 device.mac_address,
+                 "{\"timestamp\":%lu}",
                  now / 1000);
       }
 
