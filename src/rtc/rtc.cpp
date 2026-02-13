@@ -13,12 +13,8 @@ static RTCStatus rtc_status = RTC_UNINITIALIZED;
 static uint32_t last_sync_time = 0;
 static uint32_t last_sync_timestamp = 0;
 
-// Sync interval: Try to sync every 60 seconds
-static const uint32_t SYNC_INTERVAL_MS = 60000;
-
-// Bootstrap timestamp: 2026-02-13 00:00:00 UTC
-// Provides reasonable starting point before first network sync
-static const uint32_t BOOTSTRAP_TIMESTAMP = 1739404800UL;
+// Note: Sync interval and bootstrap timestamp are now in arduino_configs.h
+// CONFIG_RTC_CONFIG_RTC_SYNC_INTERVAL_MS and CONFIG_RTC_CONFIG_RTC_BOOTSTRAP_TIMESTAMP
 
 // ============================================================================
 // HELPER FUNCTIONS - Time Conversion
@@ -86,18 +82,18 @@ bool initRTC(void)
 
   // Set bootstrap time (2026-02-13 00:00:00 UTC)
   // This provides a reasonable starting point before network sync
-  uint32_t bootstrap_days = BOOTSTRAP_TIMESTAMP / 86400;
-  uint32_t bootstrap_secs = BOOTSTRAP_TIMESTAMP % 86400;
+  uint32_t bootstrap_days = CONFIG_RTC_BOOTSTRAP_TIMESTAMP / 86400;
+  uint32_t bootstrap_secs = CONFIG_RTC_BOOTSTRAP_TIMESTAMP % 86400;
 
   // Simple approximation: 2026-02-13
-  rtc.setEpoch(BOOTSTRAP_TIMESTAMP);
+  rtc.setEpoch(CONFIG_RTC_BOOTSTRAP_TIMESTAMP);
 
   rtc_status = RTC_INITIALIZED;
-  last_sync_timestamp = BOOTSTRAP_TIMESTAMP;
+  last_sync_timestamp = CONFIG_RTC_BOOTSTRAP_TIMESTAMP;
 
   DEBUG_PRINTLN(F("✓ RTCZero initialized with bootstrap timestamp"));
   DEBUG_PRINT(F("  Bootstrap time: "));
-  DEBUG_PRINTLN(BOOTSTRAP_TIMESTAMP);
+  DEBUG_PRINTLN(CONFIG_RTC_BOOTSTRAP_TIMESTAMP);
 
   return true;
 }
@@ -109,8 +105,8 @@ bool syncRTCWithNetwork(void)
 {
   uint32_t now = millis();
 
-  // Rate-limit sync attempts (only sync every SYNC_INTERVAL_MS)
-  if (now - last_sync_time < SYNC_INTERVAL_MS)
+  // Rate-limit sync attempts (only sync every CONFIG_RTC_SYNC_INTERVAL_MS)
+  if (now - last_sync_time < CONFIG_RTC_SYNC_INTERVAL_MS)
   {
     return false;  // Too soon to sync again
   }
@@ -156,7 +152,7 @@ uint32_t getRTCTimestamp(void)
 
   // Check if sync is stale (>5 minutes old)
   uint32_t now = millis();
-  if (rtc_status == RTC_SYNCED && (now - last_sync_time > 300000))
+  if (rtc_status == RTC_SYNCED && (now - last_sync_time > CONFIG_RTC_STALE_THRESHOLD_MS))
   {
     rtc_status = RTC_SYNC_STALE;
   }
@@ -174,7 +170,7 @@ RTCStatus getRTCStatus(void)
   if (rtc_status == RTC_SYNCED)
   {
     uint32_t now = millis();
-    if (now - last_sync_time > 300000)
+    if (now - last_sync_time > CONFIG_RTC_STALE_THRESHOLD_MS)
     {
       rtc_status = RTC_SYNC_STALE;
     }
