@@ -2,6 +2,7 @@
 #include "sensors/sensors.h"
 #include "arduino_configs.h"
 #include <Arduino_MKRENV.h>
+#include "rtc/rtc.h"
 
 // ============================================================================
 // STATIC STATE - Sensor initialization and last readings
@@ -165,8 +166,8 @@ bool readSensors(SensorReadings* readings)
   readings->uv_valid = false;
   readings->valid = false;
 
-  // Always update timestamp
-  readings->timestamp = millis() / 1000;
+  // Always update timestamp (use RTC if available, fall back to millis)
+  readings->timestamp = getRTCTimestamp();
 
   // Read Temperature
   if (last_valid_readings.temp_valid)

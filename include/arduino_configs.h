@@ -88,4 +88,27 @@
 #define CONFIG_SERIAL_WAIT_TIMEOUT 5000
 #endif
 
+// ============================================================================
+// RTC (REAL-TIME CLOCK) CONFIGURATION
+// ============================================================================
+
+// RTC synchronization interval (milliseconds)
+// Non-blocking sync with WiFiNINA.getTime() every 60 seconds
+#ifndef CONFIG_RTC_SYNC_INTERVAL_MS
+#define CONFIG_RTC_SYNC_INTERVAL_MS 60000
+#endif
+
+// Bootstrap timestamp for RTC initialization before network sync
+// Default: 2026-02-13 00:00:00 UTC (reasonable starting point)
+// Unix timestamp: 1739404800
+#ifndef CONFIG_RTC_BOOTSTRAP_TIMESTAMP
+#define CONFIG_RTC_BOOTSTRAP_TIMESTAMP 1739404800UL
+#endif
+
+// RTC staleness threshold (milliseconds)
+// Mark RTC as "stale" if last sync was >5 minutes ago
+#ifndef CONFIG_RTC_STALE_THRESHOLD_MS
+#define CONFIG_RTC_STALE_THRESHOLD_MS 300000
+#endif
+
 #endif  // ARDUINO_CONFIGS_H
