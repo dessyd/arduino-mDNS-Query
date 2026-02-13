@@ -3,6 +3,7 @@
 ## Overview
 
 The Arduino MKR WiFi 1010 now publishes sensor data to an MQTT broker after:
+
 1. Discovering the config server via mDNS
 2. Fetching MQTT broker details from the config server
 3. Connecting to the MQTT broker
@@ -10,7 +11,7 @@ The Arduino MKR WiFi 1010 now publishes sensor data to an MQTT broker after:
 
 ## Configuration Flow
 
-```
+```text
 mDNS Discovery (10s interval)
     ↓
 Config Server HTTP Fetch (30s wait)
@@ -25,11 +26,13 @@ MQTT Publishing (10s interval)
 ### Port Options
 
 #### Option A: Non-TLS (Port 1883) - Recommended for Testing
+
 - **Advantages**: No certificate validation needed, simple setup
 - **Use case**: Development, testing, internal networks
 - **Setup**: Ensure your MQTT broker listens on port 1883
 
 #### Option B: TLS/SSL (Port 8883) - For Production
+
 - **Advantages**: Secure, encrypted communication
 - **Requirements**: Proper certificate validation (not yet implemented)
 - **Use case**: Production deployments, cloud MQTT services
@@ -37,7 +40,8 @@ MQTT Publishing (10s interval)
 ### Port Fallback Logic
 
 The code automatically tries both ports:
-```
+
+```text
 1. Attempt connection on configured port (default: 8883)
 2. If TLS port fails, try fallback to port 1883
 3. If both fail, retry on next loop cycle
@@ -46,6 +50,7 @@ The code automatically tries both ports:
 ## Testing Setup
 
 ### Step 1: Verify mDNS Server is Running
+
 ```bash
 # Your config server should advertise _config._tcp.local
 # Test with: avahi-browse -r _config._tcp.local
@@ -54,6 +59,7 @@ The code automatically tries both ports:
 ### Step 2: Configure MQTT Broker
 
 **Using Mosquitto (example):**
+
 ```bash
 # Install
 brew install mosquitto
@@ -68,6 +74,7 @@ mosquitto -c /usr/local/etc/mosquitto/mosquitto.conf
 ```
 
 **Using Docker:**
+
 ```bash
 docker run -d \
   --name mosquitto \
@@ -76,12 +83,14 @@ docker run -d \
 ```
 
 ### Step 3: Subscribe to Topic (Monitor Messages)
+
 ```bash
 mosquitto_sub -h 192.168.2.50 -p 1883 \
   -t "home/devices/config_client_A1B2C3/updated"
 ```
 
 ### Step 4: Run the Arduino
+
 1. Upload the sketch to MKR WiFi 1010
 2. Monitor serial output at 115200 baud
 3. Wait ~30 seconds for config fetch
@@ -90,7 +99,7 @@ mosquitto_sub -h 192.168.2.50 -p 1883 \
 
 ## Sample Output Sequence
 
-```
+```text
 ✓ WiFi connected! IP: 192.168.1.123
 ✓ mDNS initialized...
 → Attempting to fetch config from: 192.168.1.21:5050
@@ -125,6 +134,7 @@ The Arduino publishes this JSON payload every 10 seconds:
 ```
 
 **Fields:**
+
 - `device_id`: ATECC608A serial number (9 bytes)
 - `mac`: WiFi MAC address
 - `timestamp`: Seconds since device boot
@@ -138,6 +148,7 @@ The Arduino publishes this JSON payload every 10 seconds:
 **Cause**: Broker not reachable on either port
 
 **Solutions**:
+
 1. Check broker is running: `netstat -an | grep 1883`
 2. Verify firewall allows port 1883
 3. Confirm broker IP address (should be 192.168.2.50 from config)
@@ -148,6 +159,7 @@ The Arduino publishes this JSON payload every 10 seconds:
 **This is normal!** The code detects TLS port and automatically falls back to 1883.
 
 **Options**:
+
 1. Use port 1883 broker (easiest for testing)
 2. Modify config server to return port 1883
 3. Implement proper TLS certificates (advanced)
@@ -162,7 +174,9 @@ The Arduino publishes this JSON payload every 10 seconds:
 ## Next Steps
 
 ### To Use Real Sensor Data
+
 Edit `src/main.cpp` in the MQTT publishing section:
+
 ```cpp
 // Replace dummy values with real sensor readings
 snprintf(payload, sizeof(payload),
@@ -172,13 +186,17 @@ snprintf(payload, sizeof(payload),
 ```
 
 ### To Add Authentication
+
 Add to `src/mqtt/mqtt_publish.cpp` in `initMQTT()`:
+
 ```cpp
 mqttClient.setUsernamePassword("username", "password");
 ```
 
 ### To Add Heartbeat Messages
+
 Modify `PUBLISH_INTERVAL` in `src/main.cpp`:
+
 ```cpp
 static const uint32_t PUBLISH_INTERVAL = 5000;  // Every 5 seconds
 ```
