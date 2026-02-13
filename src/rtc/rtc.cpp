@@ -90,12 +90,6 @@ bool syncRTCWithNetwork(void)
  */
 uint32_t getRTCTimestamp(void)
 {
-  if (rtc_status == RTC_UNINITIALIZED)
-  {
-    // RTC not initialized - fall back to millis
-    return millis() / 1000;
-  }
-
   // Check if sync is stale (>5 minutes old)
   uint32_t now = millis();
   if (rtc_status == RTC_SYNCED && (now - last_sync_time > CONFIG_RTC_STALE_THRESHOLD_MS))
@@ -103,7 +97,7 @@ uint32_t getRTCTimestamp(void)
     rtc_status = RTC_SYNC_STALE;
   }
 
-  // Return current RTC time
+  // Return current RTC time (starts at 0, updated via network sync)
   return rtc.getEpoch();
 }
 
