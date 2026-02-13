@@ -30,6 +30,7 @@
 #include "config_fetch/config_fetch.h"
 #include "mqtt/mqtt_publish.h"
 #include "sensors/sensors.h"
+#include "rtc/rtc.h"
 
 // ============================================================================
 // GLOBAL STATE - Device and configuration tracking
@@ -129,6 +130,16 @@ void setup(void)
     DEBUG_PRINTLN(F("✓ Environmental sensors initialized"));
   }
 
+  // Initialize Real-Time Clock (RTC)
+  if (!initRTC())
+  {
+    DEBUG_PRINTLN(F("⚠ RTC initialization failed - will use relative timestamps"));
+  }
+  else
+  {
+    DEBUG_PRINTLN(F("✓ Real-Time Clock initialized"));
+  }
+
   DEBUG_PRINTLN(F("✓ Setup complete - entering main loop"));
 }
 
@@ -155,6 +166,9 @@ void loop(void)
 {
   static uint32_t lastQueryTime = 0;
   uint32_t now = millis();
+
+  // === BACKGROUND: Periodically sync RTC with network time (non-blocking) ===
+  syncRTCWithNetwork();
 
   // === IF CONFIG ALREADY FETCHED: FOCUS ON MQTT ===
   if (config_fetched)
