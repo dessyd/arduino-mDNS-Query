@@ -44,7 +44,6 @@ static const uint32_t CONFIG_FETCH_RETRY_INTERVAL = 30000;  // Retry every 30s
 
 static bool mqtt_initialized = false;
 static uint32_t last_publish_time = 0;
-static const uint32_t PUBLISH_INTERVAL = 10000;  // Publish every 10s
 
 static SensorReadings sensor_data;
 static bool sensors_initialized = false;
@@ -176,8 +175,11 @@ void loop(void)
     // Maintain MQTT connection
     MQTTStatus mqtt_status = maintainMQTT();
 
-    // Publish sensor data at regular intervals
-    if (isMQTTReady() && now - last_publish_time >= PUBLISH_INTERVAL)
+    // Calculate publish interval from config (poll_frequency_sec to milliseconds)
+    uint32_t publish_interval_ms = mqtt_config.poll_frequency_sec * 1000;
+
+    // Publish sensor data at regular intervals (respecting config frequency)
+    if (isMQTTReady() && now - last_publish_time >= publish_interval_ms)
     {
       last_publish_time = now;
 

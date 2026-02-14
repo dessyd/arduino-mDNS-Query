@@ -46,7 +46,7 @@
 │ • ML8511    │
 │   (UV-Rev1) │
 └─────────────┘
-```text
+```
 
 ## Pin Assignments
 
@@ -59,7 +59,7 @@
 #define PIN_WIFI_MOSI  8    // SPI MOSI
 #define PIN_WIFI_MISO  10   // SPI MISO
 #define PIN_WIFI_SCK   9    // SPI Clock
-```text
+```
 
 **Warning**: Do not use pins 5-10 for user applications. These are dedicated to WiFiNINA module control.
 
@@ -72,7 +72,7 @@
 // I2C configuration
 Wire.begin();
 Wire.setClock(100000);  // 100 kHz standard mode
-```text
+```
 
 ### Available User Pins
 
@@ -84,7 +84,7 @@ Wire.setClock(100000);  // 100 kHz standard mode
 #define PIN_DIGITAL_2   2   // External interrupt capable
 #define PIN_DIGITAL_3   3   // External interrupt capable
 #define PIN_DIGITAL_4   4   // Digital I/O
-```text
+```
 
 ## MKR ENV Shield I2C Addresses
 
@@ -130,7 +130,7 @@ MKR1010 Top View:
       MISO (10)├─── WiFiNINA SPI
       SCK (9) ├─── WiFiNINA SPI
       CS (7) ──── WiFiNINA SPI
-```text
+```
 
 ### I2C External Pull-up Resistors (Mandatory)
 
@@ -153,7 +153,7 @@ MKR1010 Top View:
 
 
 GND connections for all pull-ups must connect to MKR1010 GND
-```text
+```
 
 **Component Selection**:
 
@@ -163,7 +163,7 @@ Pull-up: 4.7kΩ resistors
 
 // Fast mode (400 kHz) - if needed
 Pull-up: 2.2kΩ resistors
-```text
+```
 
 ### Adding External 5V Sensors (Level Shifting Required)
 
@@ -180,7 +180,7 @@ External 5V Sensor:
               └──────[20kΩ]────┴─── GND
 
 // Voltage divider output: 5V × 20kΩ/(10kΩ+20kΩ) = 3.33V ✓
-```text
+```
 
 **Recommended for easier level shifting**: I2C Level Shifter module
 
@@ -227,7 +227,7 @@ For standalone deployment:
 
 ```text
 Battery Bank → VIN (5V) → MKR1010 → Onboard regulator → 3.3V system
-```text
+```
 
 **Recommended battery**:
 
@@ -246,7 +246,7 @@ MQTT Client:         2 KB (6%)
 mDNS Packets:        2 KB (6%)
 Global Variables:    512 B (2%)
 Stack Space:         ~18 KB (56% remaining) ✓
-```text
+```
 
 **Status**: ✅ Healthy margin - room for additional features
 
@@ -261,7 +261,7 @@ MQTT Client:         8 KB (3%)
 mDNS Module:         6 KB (2%)
 RTC Module:          2 KB (1%)
 Free Space:          ~180 KB (70%) ✓
-```text
+```
 
 **Status**: ✅ Very healthy - ample space for code expansion
 
@@ -279,7 +279,7 @@ ENV.readPressure(MILLIBAR)
 ENV.readIlluminance(LUX)
 ENV.readUVA()        // ✓ Available
 ENV.readUVB()        // ✓ Available
-```text
+```
 
 ### MKR ENV Shield Rev2 (without UV sensor)
 
@@ -287,7 +287,7 @@ ENV.readUVB()        // ✓ Available
 // Same as Rev1 except UV not available:
 ENV.readUVA()        // ✗ Returns NaN
 ENV.readUVB()        // ✗ Returns NaN
-```text
+```
 
 **Detection Code**:
 
@@ -386,7 +386,7 @@ if (readings.temp_valid && readings.temperature > -40 && readings.temperature < 
 } else {
   // Sensor data invalid, skip
 }
-```text
+```
 
 ## Testing Checklist
 
@@ -431,7 +431,7 @@ pio device monitor -e mkr1010_debug -b 115200
 #
 # === SENSOR TELEMETRY ===
 # {"temperature_celsius":24.5,"humidity_percent":52.3,...}
-```text
+```
 
 ## Safety Warnings
 
