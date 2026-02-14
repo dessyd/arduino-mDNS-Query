@@ -33,25 +33,26 @@ typedef enum {
  * RTC will be synced with network time via WiFiNINA on first successful sync
  *
  * Returns:
- *   true if RTC initialized successfully
- *   false if initialization failed
+ *   RTC_INITIALIZED if successful
+ *   RTC_UNINITIALIZED if initialization failed
  */
-bool initRTC(void);
+RTCStatus initRTC(void);
 
 /**
  * Synchronize RTC with network time from WiFiNINA
  * Non-blocking operation - should be called periodically from main loop
  *
  * Returns:
- *   true if sync successful (time updated from network)
- *   false if network time unavailable or sync skipped (too soon)
+ *   RTC_SYNCED if sync successful (time updated from network)
+ *   RTC_SYNC_STALE if sync was skipped (too soon or WiFi unavailable)
+ *   RTC_INITIALIZED if unable to sync but RTC is running
  *
  * Behavior:
  *   - Only syncs if WiFi is connected
  *   - Only syncs every SYNC_INTERVAL_MS to avoid excessive updates
  *   - Updates internal state for status tracking
  */
-bool syncRTCWithNetwork(void);
+RTCStatus syncRTCWithNetwork(void);
 
 /**
  * Get current Unix timestamp from RTC

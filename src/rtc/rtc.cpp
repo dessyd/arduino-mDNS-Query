@@ -23,7 +23,7 @@ static uint32_t last_sync_timestamp = 0;
 /**
  * Initialize RTC hardware
  */
-bool initRTC(void)
+RTCStatus initRTC(void)
 {
   DEBUG_PRINTLN(F(""));
   DEBUG_PRINTLN(F("=== RTC INITIALIZATION ==="));
@@ -41,26 +41,26 @@ bool initRTC(void)
 
   DEBUG_PRINTLN(F("✓ RTCZero initialized"));
 
-  return true;
+  return RTC_INITIALIZED;
 }
 
 /**
  * Synchronize RTC with network time from WiFiNINA
  */
-bool syncRTCWithNetwork(void)
+RTCStatus syncRTCWithNetwork(void)
 {
   uint32_t now = millis();
 
   // Rate-limit sync attempts (only sync every CONFIG_RTC_SYNC_INTERVAL_MS)
   if (now - last_sync_time < CONFIG_RTC_SYNC_INTERVAL_MS)
   {
-    return false;  // Too soon to sync again
+    return rtc_status;  // Too soon to sync again, return current status
   }
 
   // Check if WiFi is connected
   if (WiFi.status() != WL_CONNECTED)
   {
-    return false;  // Can't sync without WiFi
+    return rtc_status;  // Can't sync without WiFi, return current status
   }
 
   // Get current time from WiFiNINA
@@ -69,7 +69,7 @@ bool syncRTCWithNetwork(void)
   if (wifi_time == 0)
   {
     // WiFiNINA doesn't have time yet (no NTP response)
-    return false;
+    return rtc_status;  // No time available, return current status
   }
 
   // Update RTC with network time
@@ -82,7 +82,7 @@ bool syncRTCWithNetwork(void)
   DEBUG_PRINT(F("✓ RTC synced with network time: "));
   DEBUG_PRINTLN(wifi_time);
 
-  return true;
+  return RTC_SYNCED;
 }
 
 /**

@@ -130,7 +130,8 @@ void setup(void)
   }
 
   // Initialize Real-Time Clock (RTC)
-  if (!initRTC())
+  RTCStatus rtc_init_status = initRTC();
+  if (rtc_init_status != RTC_INITIALIZED)
   {
     DEBUG_PRINTLN(F("⚠ RTC initialization failed - will use relative timestamps"));
   }
