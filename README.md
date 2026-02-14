@@ -105,19 +105,19 @@ All sensor readings include explicit units in JSON output:
 
 ### mDNS Service Discovery
 
-The device queries the local network for mDNS services to auto-discover configuration servers and MQTT brokers. This eliminates the need for hardcoded IP addresses or manual configuration.
+The device queries the local network to discover configuration servers via mDNS. This eliminates the need for hardcoded IP addresses. The configuration server provides MQTT broker details and other runtime settings.
 
-**Query Pattern**: `_http._tcp.local` for configuration server discovery
+**Query Pattern**: `_config._tcp.local` for configuration server discovery
 
 ### WiFi Connection
 
 - Configurable SSID and password in `arduino_secrets.h`
-- 10-second connection timeout
-- Automatic retry every 30 seconds on failure
+- 30-second connection timeout
+- Automatic retry attempts on failure
 
-### MQTT Broker Discovery
+### Configuration & MQTT
 
-Device queries for MQTT broker via mDNS (`_mqtt._tcp.local`) on local network. If found via mDNS, uses the discovered broker; otherwise uses configuration from the HTTP config server.
+Device discovers configuration server via mDNS query for `_config._tcp.local`, then fetches MQTT broker address and other parameters from that server via HTTP GET request.
 
 ## Memory Usage
 

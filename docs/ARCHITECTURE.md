@@ -161,7 +161,7 @@ typedef struct {
 **Flow**:
 
 ```text
-1. Discover config server via mDNS (_http._tcp.local)
+1. Discover config server via mDNS (_config._tcp.local)
 2. HTTP GET http://config-server:port/config
 3. Parse JSON response:
    {
@@ -343,7 +343,7 @@ Every iteration:
 ┌──────────────────────┐
 │ Start-up             │
 │ Send mDNS PTR query  │
-│ "_http._tcp.local"   │
+│ "_config._tcp.local" │
 └──────────────────────┘
        │
        │ Query packet
