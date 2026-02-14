@@ -105,7 +105,9 @@ All sensor readings include explicit units in JSON output:
 
 ### mDNS Service Discovery
 
-The device advertises as `<device_id>._http._tcp.local` allowing other devices to discover it without hardcoded IP addresses.
+The device queries the local network for mDNS services to auto-discover configuration servers and MQTT brokers. This eliminates the need for hardcoded IP addresses or manual configuration.
+
+**Query Pattern**: `_http._tcp.local` for configuration server discovery
 
 ### WiFi Connection
 
@@ -115,7 +117,7 @@ The device advertises as `<device_id>._http._tcp.local` allowing other devices t
 
 ### MQTT Broker Discovery
 
-Device attempts to locate MQTT broker via mDNS (`_mqtt._tcp.local`) before connecting directly.
+Device queries for MQTT broker via mDNS (`_mqtt._tcp.local`) on local network. If found via mDNS, uses the discovered broker; otherwise uses configuration from the HTTP config server.
 
 ## Memory Usage
 
