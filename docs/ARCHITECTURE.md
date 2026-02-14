@@ -4,28 +4,37 @@
 
 `arduino-mDNS-Query` is a modular IoT firmware system that combines environmental monitoring with network service discovery and cloud telemetry. The architecture follows a layered design pattern with clear separation of concerns.
 
-```text
-┌─────────────────────────────────────────────────────┐
-│                   Main Program Flow                  │
-│              (setup/loop/event handlers)             │
-└──────────────┬──────────────────────────────────────┘
-               │
-    ┌──────────┼──────────┬──────────┬──────────────┐
-    │          │          │          │              │
-    v          v          v          v              v
-┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐  ┌──────────┐
-│Sensors │ │Network │ │  mDNS  │ │ MQTT   │  │   RTC    │
-│        │ │        │ │ Query  │ │ Broker │  │          │
-└────────┘ └────────┘ └────────┘ └────────┘  └──────────┘
-    │
-    └──────────────────────────────────────────────────┐
-                   (WiFi & UDP packets)
-                             │
-                             v
-                    ┌────────────────┐
-                    │  WiFiNINA I/O  │
-                    └────────────────┘
-```text
+```mermaid
+graph TD
+    Main["Main Program Flow<br/>(setup/loop/event handlers)"]
+
+    Sensors["Sensors Module<br/>(HTS221, LPS22HB<br/>TEMT6000, ML8511)"]
+    Network["Network Module<br/>(WiFi, UDP socket)"]
+    MDNS["mDNS Query<br/>(_config._tcp.local)"]
+    MQTT["MQTT Broker<br/>(Telemetry publish)"]
+    RTC["RTC Module<br/>(Timestamping)"]
+
+    WiFiNINA["WiFiNINA I/O<br/>(SPI to NINA-W102)"]
+
+    Main --> Sensors
+    Main --> Network
+    Main --> MDNS
+    Main --> MQTT
+    Main --> RTC
+
+    Sensors --> WiFiNINA
+    Network --> WiFiNINA
+    MDNS --> WiFiNINA
+    MQTT --> WiFiNINA
+
+    style Main fill:#e1f5ff
+    style WiFiNINA fill:#fff3e0
+    style Sensors fill:#f3e5f5
+    style Network fill:#e8f5e9
+    style MDNS fill:#fce4ec
+    style MQTT fill:#e0f2f1
+    style RTC fill:#f1f8e9
+```
 
 ## Module Breakdown
 
@@ -58,7 +67,7 @@ typedef struct {
   bool light_valid;
   bool uv_valid;
 } SensorReadings;
-```text
+```
 
 **JSON Output Format**:
 
@@ -71,7 +80,7 @@ typedef struct {
   "uv_index": 2.1,
   "timestamp": 12345
 }
-```text
+```
 
 **Unit Decisions**:
 
@@ -101,7 +110,7 @@ typedef struct {
 #define CONFIG_WIFI_TIMEOUT_MS 10000               // 10s connection timeout
 #define CONFIG_MDNS_MULTICAST_ADDR "224.0.0.251"
 #define CONFIG_MDNS_PORT 5353
-```text
+```
 
 **Memory**: ~8 KB (WiFiNINA overhead) + UDP socket buffers
 
@@ -129,7 +138,7 @@ typedef struct {
    - A: Hostname IP address
 5. Validate all required fields present
 6. Return DiscoveredConfig
-```text
+```
 
 **Data Structure**:
 
@@ -143,7 +152,7 @@ typedef struct {
   char ipStr[16];             // "192.168.1.100"
   bool valid;
 } DiscoveredConfig;
-```text
+```
 
 **Memory**: ~2 KB RAM, ~6 KB Flash
 
@@ -158,21 +167,53 @@ typedef struct {
 - Parse MQTT broker hostname, port, topic prefix
 - Store for MQTT initialization
 
-**Flow**:
+**HTTP Request**:
 
 ```text
-1. Discover config server via mDNS (_config._tcp.local)
-2. HTTP GET http://config-server:port/config
-3. Parse JSON response:
-   {
-     "mqtt_host": "broker.example.com",
-     "mqtt_port": 1883,
-     "mqtt_topic_prefix": "devices/sensor123",
-     "retain": true
-   }
-4. Store in MQTTConfig struct
-5. Pass to initMQTT()
-```text
+GET /config?device_id=<device_id>&mac=<mac_address> HTTP/1.1
+Host: <discovered-host>:<discovered-port>
+User-Agent: Arduino/1.0
+Connection: close
+```
+
+**Flow**:
+
+1. Discover config server via mDNS (`_config._tcp.local`)
+2. Build device ID and MAC address parameters
+3. HTTP GET `/config?device_id=<serial>&mac=<mac>`
+4. Parse JSON response (wrapped in "config" object):
+
+    ```json
+    {
+      "config": {
+        "mqtt_broker": "broker.example.com",
+        "mqtt_port": 1883,
+        "mqtt_topic": "devices/MKR1010-ABCD1234/telemetry",
+        "poll_frequency_sec": 10,
+        "heartbeat_frequency_sec": 300,
+        "template": "default"
+      }
+    }
+    ```
+
+5. Extract and store in MQTTConfig struct
+6. Pass to initMQTT()
+
+**JSON Response Fields**:
+
+| Field | Type | Example | Description |
+|-------|------|---------|-------------|
+| `config` | object | (required) | Root object containing configuration |
+| `mqtt_broker` | string | `"broker.example.com"` | MQTT broker hostname or IP address |
+| `mqtt_port` | integer | `1883` | MQTT broker port (typically 1883 for MQTT, 8883 for MQTTS) |
+| `mqtt_topic` | string | `"devices/MKR1010-ABCD1234/telemetry"` | Topic path for telemetry publishing |
+| `poll_frequency_sec` | integer | `10` | Sensor polling interval in seconds |
+| `heartbeat_frequency_sec` | integer | `300` | Heartbeat/keepalive interval in seconds |
+| `template` | string | `"default"` | Configuration template name (for future extensibility) |
+
+**Optional Fields**:
+
+The parser gracefully handles missing fields—if a field is not present, it retains its default/zero value in the MQTTConfig struct. At minimum, `mqtt_broker` and `mqtt_port` are required for MQTT functionality.
 
 **Retry Strategy**:
 
@@ -201,7 +242,7 @@ typedef struct {
 [CONNECTING] → [CONNECTED] → [DISCONNECTED]
     ↓                            ↑
   timeout/error ─────────────────┘
-```text
+```
 
 **Publishing**:
 
@@ -210,7 +251,7 @@ Topic: devices/sensor123/telemetry
 Payload: {"temperature_celsius":24.5,...,"timestamp":12345}
 QoS: 1 (at-least-once)
 Retain: true (broker stores last message)
-```text
+```
 
 **Memory**: ~2 KB RAM, ~8 KB Flash
 
@@ -230,7 +271,7 @@ Retain: true (broker stores last message)
 ```text
 If RTC synced:     Return getRTCTime()        (accurate)
 Else:              Return millis() / 1000     (seconds since boot)
-```text
+```
 
 **State Machine**: See [RTC_STATE_MACHINE.md](RTC_STATE_MACHINE.md)
 
@@ -252,7 +293,7 @@ Else:              Return millis() / 1000     (seconds since boot)
 SAMD21 Unique IDs: [WORD0] [WORD1] [WORD2] [WORD3]
 XOR Reduction:     ID = WORD0 ^ WORD1 ^ WORD2 ^ WORD3  (32-bit)
 Device Name:       "MKR1010-XXXXXXXX"
-```text
+```
 
 **Memory**: ~128 B
 
@@ -267,7 +308,7 @@ Device Name:       "MKR1010-XXXXXXXX"
 4. WiFi.begin(SSID, password)              // Network connection
 5. Broadcast device via mDNS
 6. Create UDP socket for mDNS queries
-```text
+```
 
 **Event Loop (loop)**:
 
@@ -280,7 +321,7 @@ Every iteration:
   5. Publish to MQTT every 10 seconds (if connected)
   6. Handle incoming mDNS responses (non-blocking)
   7. Yield to WiFiNINA stack periodically
-```text
+```
 
 **Timing Budget**:
 
@@ -298,90 +339,50 @@ Every iteration:
 
 ### Sensor Reading & Telemetry
 
-```text
-┌──────────────┐
-│ MKR ENV      │  I2C (100 kHz)
-│ Shield       │
-├──────────────┤
-│ HTS221       │
-│ LPS22HB      │
-│ TEMT6000     │
-└──────────────┘
-       │
-       │ Raw ADC values
-       ↓
-┌──────────────────────┐
-│ readSensors()        │
-│ - Poll each sensor   │
-│ - Validate values    │
-│ - Set validity flags │
-└──────────────────────┘
-       │
-       │ SensorReadings
-       ↓
-┌──────────────────────┐
-│ formatSensorJSON()   │
-│ Output with units:   │
-│ temperature_celsius  │
-│ humidity_percent     │
-│ pressure_millibar    │
-│ illuminance_lux      │
-└──────────────────────┘
-       │
-       │ JSON string
-       ↓
-┌──────────────────────┐
-│ MQTT Broker          │
-│ Topic: devices/...   │
-│ /telemetry           │
-└──────────────────────┘
-```text
+```mermaid
+graph TD
+    ENV["MKR ENV Shield<br/>(I2C 100 kHz)<br/>━━━━━━━━━━<br/>• HTS221<br/>• LPS22HB<br/>• TEMT6000"]
+    POLL["readSensors()<br/>━━━━━━━━━━<br/>• Poll each sensor<br/>• Validate values<br/>• Set validity flags"]
+    FORMAT["formatSensorJSON()<br/>━━━━━━━━━━<br/>temperature_celsius<br/>humidity_percent<br/>pressure_millibar<br/>illuminance_lux"]
+    MQTT["MQTT Broker<br/>━━━━━━━━━━<br/>Topic: devices/…<br/>/telemetry<br/>QoS: 1, Retain: true"]
+
+    ENV -->|Raw ADC values| POLL
+    POLL -->|SensorReadings struct| FORMAT
+    FORMAT -->|JSON string| MQTT
+
+    style ENV fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style POLL fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style FORMAT fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    style MQTT fill:#fff3e0,stroke:#f57f17,stroke-width:2px
+```
 
 ### Configuration Discovery
 
-```text
-┌──────────────────────┐
-│ Start-up             │
-│ Send mDNS PTR query  │
-│ "_config._tcp.local" │
-└──────────────────────┘
-       │
-       │ Query packet
-       │ to 224.0.0.251:5353
-       ↓
-┌──────────────────────┐
-│ Config Server       │
-│ (mDNS responder)     │
-└──────────────────────┘
-       │
-       │ PTR/SRV/TXT/A records
-       │ (multicast response)
-       ↓
-┌──────────────────────┐
-│ parseMDNSResponse()  │
-│ Extract:             │
-│ - hostname           │
-│ - port               │
-│ - path               │
-│ - version            │
-│ - IP address         │
-└──────────────────────┘
-       │
-       │ DiscoveredConfig
-       ↓
-┌──────────────────────┐
-│ HTTP GET             │
-│ /config              │
-│ fetchMQTTConfig()    │
-└──────────────────────┘
-       │
-       │ JSON config
-       ↓
-┌──────────────────────┐
-│ MQTTConfig           │
-│ Store broker details │
-└──────────────────────┘
-```text
+```mermaid
+graph TD
+    STARTUP["Start-up<br/>━━━━━━━━━━<br/>Send mDNS PTR query<br/>_config._tcp.local"]
+    QUERY["mDNS Query Packet<br/>━━━━━━━━━━<br/>UDP 224.0.0.251:5353<br/>(multicast)"]
+    SERVER["Config Server<br/>━━━━━━━━━━<br/>(mDNS responder)"]
+    RESPONSE["mDNS Response<br/>━━━━━━━━━━<br/>PTR/SRV/TXT/A records<br/>(multicast reply)"]
+    PARSE["parseMDNSResponse()<br/>━━━━━━━━━━<br/>Extract:<br/>• hostname<br/>• port<br/>• path<br/>• version<br/>• IP address"]
+    HTTPREQ["HTTP GET<br/>━━━━━━━━━━<br/>fetchMQTTConfig()<br/>/config?device_id=…<br/>&mac=…"]
+    JSONRESP["JSON Config Response<br/>━━━━━━━━━━<br/>mqtt_broker<br/>mqtt_port<br/>mqtt_topic<br/>poll_frequency_sec"]
+    STORE["MQTTConfig Struct<br/>━━━━━━━━━━<br/>Store broker details<br/>Initialize MQTT"]
+
+    STARTUP --> QUERY
+    QUERY --> SERVER
+    SERVER --> RESPONSE
+    RESPONSE --> PARSE
+    PARSE -->|DiscoveredConfig| HTTPREQ
+    HTTPREQ --> JSONRESP
+    JSONRESP -->|Parse & validate| STORE
+
+    style STARTUP fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    style SERVER fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style PARSE fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style HTTPREQ fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    style STORE fill:#fff3e0,stroke:#f57f17,stroke-width:2px
+```
 
 ## Design Decisions
 
@@ -404,7 +405,7 @@ Every iteration:
 
 // ✗ Ambiguous
 {"temperature": 24.5, "pressure": 1013.2}
-```text
+```
 
 ### 2. Validity Flags per Sensor
 
@@ -427,7 +428,7 @@ struct {
   float pressure;
   bool pressure_valid;  // Can be false independently
 }
-```text
+```
 
 ### 3. mDNS over Hard-Coded IPs
 
