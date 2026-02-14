@@ -173,7 +173,7 @@ void loop(void)
   if (config_fetched)
   {
     // Maintain MQTT connection
-    MQTTStatus mqtt_status = maintainMQTT();
+    maintainMQTT();
 
     // Calculate publish interval from config (poll_frequency_sec to milliseconds)
     uint32_t publish_interval_ms = mqtt_config.poll_frequency_sec * 1000;
@@ -209,7 +209,11 @@ void loop(void)
                  now / 1000);
       }
 
-      publishToMQTT(nullptr, payload);
+      MQTTStatus pub_status = publishToMQTT(nullptr, payload);
+      if (pub_status == MQTT_ERROR)
+      {
+        DEBUG_PRINTLN(F("⚠ Failed to publish to MQTT"));
+      }
     }
     return;  // Skip remaining config discovery code
   }
@@ -274,7 +278,8 @@ void loop(void)
         DEBUG_PRINTLN(F(""));
 
         // Initialize MQTT connection
-        if (initMQTT(&mqtt_config))
+        MQTTStatus init_status = initMQTT(&mqtt_config);
+        if (init_status != MQTT_ERROR)
         {
           mqtt_initialized = true;
           DEBUG_PRINTLN(F("✓ MQTT module initialized"));

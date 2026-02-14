@@ -29,9 +29,9 @@ typedef enum {
  *   - config: MQTT configuration from config server
  *
  * Returns:
- *   true if connection initiated successfully
+ *   Current MQTT status (MQTT_CONNECTING if successful, MQTT_ERROR if failed)
  */
-bool initMQTT(const MQTTConfig* config);
+MQTTStatus initMQTT(const MQTTConfig* config);
 
 /**
  * Maintain MQTT connection and handle network events
@@ -50,9 +50,9 @@ MQTTStatus maintainMQTT();
  *   - message: JSON or plain text message
  *
  * Returns:
- *   true if message sent successfully
+ *   Current MQTT status (MQTT_CONNECTED if sent, MQTT_ERROR if failed)
  */
-bool publishToMQTT(const char* topic, const char* message);
+MQTTStatus publishToMQTT(const char* topic, const char* message);
 
 /**
  * Get current MQTT connection status
@@ -72,7 +72,10 @@ bool isMQTTReady();
 
 /**
  * Disconnect from MQTT broker
+ *
+ * Returns:
+ *   MQTT_DISCONNECTED
  */
-void disconnectMQTT();
+MQTTStatus disconnectMQTT();
 
 #endif  // MQTT_PUBLISH_H
