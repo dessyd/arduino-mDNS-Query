@@ -2,12 +2,12 @@
 
 ## Overview
 
-The Arduino MKR WiFi 1010 now publishes sensor data to an MQTT broker after:
+The Arduino MKR WiFi 1010 now publishes real environmental sensor data to an MQTT broker after:
 
 1. Discovering the config server via mDNS
-2. Fetching MQTT broker details from the config server
+2. Fetching MQTT broker details and publish interval from the config server
 3. Connecting to the MQTT broker
-4. Publishing dummy JSON payloads every 10 seconds
+4. Publishing real sensor readings at the configurable interval received from the config server
 
 ## Configuration Flow
 
@@ -18,7 +18,7 @@ Config Server HTTP Fetch (30s wait)
     ↓
 MQTT Initialization
     ↓
-MQTT Publishing (10s interval)
+MQTT Publishing (interval as received from Config Server)
 ```
 
 ## MQTT Broker Configuration
@@ -107,6 +107,8 @@ mosquitto_sub -h 192.168.2.50 -p 1883 \
 === CONFIGURATION SUCCESSFULLY RETRIEVED ===
 MQTT Broker: 192.168.2.50
 MQTT Port: 8883
+MQTT Topic: home/devices/config_client_A1B2C3/updated
+Poll Interval: 5 seconds
 
 === MQTT INITIALIZATION ===
 → Port 8883 detected (TLS/SSL required)
@@ -115,31 +117,33 @@ MQTT Port: 8883
   → Trying fallback port 1883 (non-TLS)...
 ✓ Connected to MQTT broker
 → Publishing to: home/devices/config_client_A1B2C3/updated
-  Message: {"device_id":"0123B4364F467BF2","mac":"A8:8F:AD:C4:0A:24","timestamp":45000,"temperature":23.5,"humidity":45}
+  Message: {"temperature_celsius":23.5,"humidity_percent":45.2,"pressure_millibar":1013.25,"illuminance_lux":542,"uv_index":2.1,"timestamp":45000}
 ✓ Message published
 ```
 
 ## Sample Published Data
 
-The Arduino publishes this JSON payload every 10 seconds:
+The Arduino publishes this JSON payload at the interval configured by the config server:
 
 ```json
 {
-  "device_id": "0123B4364F467BF2EE",
-  "mac": "A8:8F:AD:C4:0A:24",
-  "timestamp": 45000,
-  "temperature": 23.5,
-  "humidity": 45
+  "temperature_celsius": 23.5,
+  "humidity_percent": 45.2,
+  "pressure_millibar": 1013.25,
+  "illuminance_lux": 542,
+  "uv_index": 2.1,
+  "timestamp": 45000
 }
 ```
 
-**Fields:**
+**Fields (only valid sensor fields are included):**
 
-- `device_id`: ATECC608A serial number (9 bytes)
-- `mac`: WiFi MAC address
-- `timestamp`: Seconds since device boot
-- `temperature`: Dummy sensor value (23.5°C)
-- `humidity`: Dummy sensor value (45%)
+- `temperature_celsius`: Real sensor reading from HTS221 temperature sensor
+- `humidity_percent`: Real sensor reading from HTS221 humidity sensor (0-100%)
+- `pressure_millibar`: Real sensor reading from LPS22HB pressure sensor
+- `illuminance_lux`: Real sensor reading from TEMT6000 light sensor
+- `uv_index`: Real sensor reading from UV sensor (Rev1 boards only; not available on Rev2)
+- `timestamp`: Unix timestamp (from RTC if available, or relative milliseconds)
 
 ## Troubleshooting
 
@@ -171,21 +175,131 @@ The Arduino publishes this JSON payload every 10 seconds:
 3. Monitor Arduino serial output for publish messages
 4. Verify broker IP/port in config server response
 
-## Next Steps
+## MQTT API Reference
 
-### To Use Real Sensor Data
+### Connection Status Enum
 
-Edit `src/main.cpp` in the MQTT publishing section:
+All MQTT functions return a consistent `MQTTStatus` enum that represents the actual connection state:
 
 ```cpp
-// Replace dummy values with real sensor readings
-snprintf(payload, sizeof(payload),
-         "{\"device_id\":\"%s\",\"temperature\":%.1f}",
-         device.device_id,
-         readTemperature());  // Add your sensor function
+typedef enum {
+  MQTT_DISCONNECTED = 0,
+  MQTT_CONNECTING = 1,
+  MQTT_CONNECTED = 2,
+  MQTT_ERROR = 3
+} MQTTStatus;
 ```
 
-### To Add Authentication
+### Function API
+
+#### Initialize MQTT Connection
+
+```cpp
+MQTTStatus initMQTT(const MQTTConfig* config);
+```
+
+- **Parameters**: Configuration struct with broker, port, and topic
+- **Returns**: `MQTT_CONNECTING` if successful, `MQTT_ERROR` if failed
+- **Must be called once** after config is fetched
+
+#### Maintain Connection
+
+```cpp
+MQTTStatus maintainMQTT();
+```
+
+- **Returns**: Current connection status
+- **Must be called regularly in loop** to maintain connection and poll for messages
+- **Side effects**: Updates global `mqtt_status` based on actual socket state
+
+#### Publish Message
+
+```cpp
+MQTTStatus publishToMQTT(const char* topic, const char* message);
+```
+
+- **Parameters**:
+  - `topic`: MQTT topic (or `NULL` to use configured topic)
+  - `message`: JSON or plain text payload
+- **Returns**: `MQTT_CONNECTED` if sent successfully, `MQTT_ERROR` if failed
+- **Use case**: Call only when `isMQTTReady()` returns true
+
+#### Query Connection Status
+
+```cpp
+MQTTStatus getMQTTStatus();
+```
+
+- **Returns**: Current MQTT status enum
+- **Thread-safe**: Reading global state
+
+#### Check Ready State
+
+```cpp
+bool isMQTTReady();
+```
+
+- **Returns**: `true` if initialized, connected, and socket is active
+- **Use before**: Calling `publishToMQTT()`
+
+#### Disconnect Gracefully
+
+```cpp
+MQTTStatus disconnectMQTT();
+```
+
+- **Returns**: `MQTT_DISCONNECTED`
+- **Side effects**: Closes socket and updates `mqtt_status`
+
+### Status-Based Error Handling
+
+The refactored API uses consistent `MQTTStatus` returns instead of mixing bool/status:
+
+**Before (inconsistent):**
+
+```cpp
+if (initMQTT(&config)) {  // bool return confusing
+  // config was invalid OR connection attempted?
+}
+if (!publishToMQTT(topic, msg)) {  // bool return, modify global on error
+  // success or failure? what's the state?
+}
+```
+
+**After (consistent):**
+
+```cpp
+MQTTStatus status = initMQTT(&config);
+if (status != MQTT_ERROR) {  // clear intent: initialization failed
+  mqtt_initialized = true;
+}
+
+status = publishToMQTT(topic, msg);
+if (status == MQTT_ERROR) {  // clear: publish failed, return state
+  DEBUG_PRINTLN(F("Publish failed"));
+}
+```
+
+## Next Steps
+
+### To Change the Publish Interval
+
+The publish interval is now controlled by the config server's `poll_frequency_sec` parameter. Modify your config server response to set the desired interval:
+
+**Example config server response:**
+
+```json
+{
+  "mqtt_broker": "192.168.2.50",
+  "mqtt_port": 1883,
+  "mqtt_topic": "home/devices/config_client_A1B2C3/updated",
+  "poll_frequency_sec": 5
+}
+```
+
+The Arduino will publish data every 5 seconds (or whatever value you set).
+
+### To Add MQTT Authentication
 
 Add to `src/mqtt/mqtt_publish.cpp` in `initMQTT()`:
 
@@ -193,13 +307,9 @@ Add to `src/mqtt/mqtt_publish.cpp` in `initMQTT()`:
 mqttClient.setUsernamePassword("username", "password");
 ```
 
-### To Add Heartbeat Messages
+### To Customize Sensor Data
 
-Modify `PUBLISH_INTERVAL` in `src/main.cpp`:
-
-```cpp
-static const uint32_t PUBLISH_INTERVAL = 5000;  // Every 5 seconds
-```
+The sensor readings are automatically published by `readSensors()` in `src/sensors/sensors.cpp`. To add custom fields or modify the JSON format, edit `formatSensorJSON()` in the same file.
 
 ## Production Checklist
 

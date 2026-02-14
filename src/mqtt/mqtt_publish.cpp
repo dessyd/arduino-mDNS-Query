@@ -23,13 +23,13 @@ static bool mqtt_initialized = false;
 /**
  * Initialize MQTT connection with broker
  */
-bool initMQTT(const MQTTConfig* config)
+MQTTStatus initMQTT(const MQTTConfig* config)
 {
   if (!config || config->mqtt_broker[0] == '\0')
   {
     DEBUG_PRINTLN(F("✗ Invalid MQTT config"));
     mqtt_status = MQTT_ERROR;
-    return false;
+    return MQTT_ERROR;
   }
 
   // Store configuration
@@ -64,7 +64,7 @@ bool initMQTT(const MQTTConfig* config)
   mqtt_initialized = true;
 
   DEBUG_PRINTLN(F("✓ MQTT initialized and ready to connect"));
-  return true;
+  return MQTT_CONNECTING;
 }
 
 /**
@@ -149,18 +149,18 @@ MQTTStatus maintainMQTT()
 /**
  * Publish message to MQTT
  */
-bool publishToMQTT(const char* topic, const char* message)
+MQTTStatus publishToMQTT(const char* topic, const char* message)
 {
   if (!message)
   {
     DEBUG_PRINTLN(F("✗ Empty message"));
-    return false;
+    return MQTT_ERROR;
   }
 
   if (!isMQTTReady())
   {
     DEBUG_PRINTLN(F("✗ MQTT not connected"));
-    return false;
+    return mqtt_status;
   }
 
   // Use configured topic if not specified
@@ -169,7 +169,7 @@ bool publishToMQTT(const char* topic, const char* message)
   if (!publish_topic || publish_topic[0] == '\0')
   {
     DEBUG_PRINTLN(F("✗ No topic specified"));
-    return false;
+    return MQTT_ERROR;
   }
 
   // Publish message
@@ -187,18 +187,18 @@ bool publishToMQTT(const char* topic, const char* message)
     {
       DEBUG_PRINTLN(F("✗ Failed to publish"));
       mqtt_status = MQTT_ERROR;
-      return false;
+      return MQTT_ERROR;
     }
   }
   else
   {
     DEBUG_PRINTLN(F("✗ Failed to begin message"));
     mqtt_status = MQTT_ERROR;
-    return false;
+    return MQTT_ERROR;
   }
 
   DEBUG_PRINTLN(F("✓ Message published"));
-  return true;
+  return MQTT_CONNECTED;
 }
 
 /**
@@ -220,7 +220,7 @@ bool isMQTTReady()
 /**
  * Disconnect from MQTT
  */
-void disconnectMQTT()
+MQTTStatus disconnectMQTT()
 {
   if (mqttClient.connected())
   {
@@ -228,4 +228,5 @@ void disconnectMQTT()
     DEBUG_PRINTLN(F("✓ Disconnected from MQTT"));
   }
   mqtt_status = MQTT_DISCONNECTED;
+  return MQTT_DISCONNECTED;
 }
