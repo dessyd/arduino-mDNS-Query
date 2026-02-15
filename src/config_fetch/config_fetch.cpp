@@ -214,6 +214,31 @@ MQTTConfig parseConfigJSON(const char *json_response)
   DEBUG_PRINTLN(mqtt_config.mqtt_port);
   DEBUG_PRINT(F("  Topic: "));
   DEBUG_PRINTLN(mqtt_config.mqtt_topic);
+  DEBUG_PRINT(F("  Poll Frequency: "));
+  DEBUG_PRINT(mqtt_config.poll_frequency_sec);
+  DEBUG_PRINTLN(F(" seconds"));
+  DEBUG_PRINT(F("  Heartbeat Frequency: "));
+  DEBUG_PRINT(mqtt_config.heartbeat_frequency_sec);
+  DEBUG_PRINTLN(F(" seconds"));
+
+  // ========================================================================
+  // Validate heartbeat_frequency_sec >= poll_frequency_sec
+  // (unless heartbeat = 0 to disable heartbeat)
+  // ========================================================================
+  if (mqtt_config.heartbeat_frequency_sec > 0 &&
+      mqtt_config.heartbeat_frequency_sec < mqtt_config.poll_frequency_sec)
+  {
+    DEBUG_PRINTLN(F(""));
+    DEBUG_PRINTLN(F("⚠ Configuration Validation Warning:"));
+    DEBUG_PRINT(F("  heartbeat_frequency_sec ("));
+    DEBUG_PRINT(mqtt_config.heartbeat_frequency_sec);
+    DEBUG_PRINT(F(") must be >= poll_frequency_sec ("));
+    DEBUG_PRINT(mqtt_config.poll_frequency_sec);
+    DEBUG_PRINTLN(F(")"));
+    DEBUG_PRINTLN(F("→ Auto-correcting: setting heartbeat = poll"));
+
+    mqtt_config.heartbeat_frequency_sec = mqtt_config.poll_frequency_sec;
+  }
 
   return mqtt_config;
 }

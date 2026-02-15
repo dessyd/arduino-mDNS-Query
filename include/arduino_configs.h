@@ -111,4 +111,43 @@
 #define CONFIG_RTC_STALE_THRESHOLD_MS 300000
 #endif
 
+// ============================================================================
+// SENSOR TELEMETRY CONFIGURATION
+// ============================================================================
+
+// Sensor change detection thresholds (based on hardware accuracy specs)
+// Used to determine if a sensor reading has changed significantly enough to publish
+
+// Temperature: HTS221 accuracy is ±0.5°C (threshold in Celsius)
+#ifndef CONFIG_TEMP_THRESHOLD_CELSIUS
+#define CONFIG_TEMP_THRESHOLD_CELSIUS 0.5f
+#endif
+
+// Humidity: HTS221 accuracy is ±3.5% (threshold in percentage points)
+#ifndef CONFIG_HUMIDITY_THRESHOLD_PERCENT
+#define CONFIG_HUMIDITY_THRESHOLD_PERCENT 3.5f
+#endif
+
+// Pressure: LPS22HB accuracy is ±1 hPa (threshold in millibars/hPa)
+#ifndef CONFIG_PRESSURE_THRESHOLD_HPA
+#define CONFIG_PRESSURE_THRESHOLD_HPA 1.0f
+#endif
+
+// Illuminance: TEMT6000 accuracy is ±5% relative
+// Threshold as percentage of current reading (for relative change)
+#ifndef CONFIG_ILLUMINANCE_THRESHOLD_PERCENT
+#define CONFIG_ILLUMINANCE_THRESHOLD_PERCENT 5.0f
+#endif
+
+// Illuminance: Absolute threshold in lux (noise floor for very low light)
+// Used when absolute difference is more meaningful than relative
+#ifndef CONFIG_ILLUMINANCE_THRESHOLD_ABS_LUX
+#define CONFIG_ILLUMINANCE_THRESHOLD_ABS_LUX 50.0f
+#endif
+
+// UV Index: ML8511 accuracy is ±0.5 (threshold in index units)
+#ifndef CONFIG_UV_THRESHOLD_INDEX
+#define CONFIG_UV_THRESHOLD_INDEX 0.5f
+#endif
+
 #endif  // ARDUINO_CONFIGS_H

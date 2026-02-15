@@ -82,6 +82,36 @@ bool readSensors(SensorReadings* readings);
 bool areSensorsReady(void);
 
 /**
+ * Check if sensor readings have changed significantly
+ *
+ * Compares two sensor readings and returns true if any value has changed
+ * beyond its configured threshold. Uses individual sensor validity flags
+ * to avoid comparing invalid readings.
+ *
+ * Parameters:
+ *   - prev: Pointer to previous SensorReadings struct
+ *   - curr: Pointer to current SensorReadings struct
+ *
+ * Returns:
+ *   true if any sensor value exceeded its change threshold OR
+ *   if any validity flag changed (sensor failure/recovery)
+ *   false if all sensor values are within thresholds and no validity changes
+ *
+ * Thresholds (configurable in arduino_configs.h):
+ *   - Temperature: ±0.5°C (CONFIG_TEMP_THRESHOLD_CELSIUS)
+ *   - Humidity: ±3.5% (CONFIG_HUMIDITY_THRESHOLD_PERCENT)
+ *   - Pressure: ±1.0 hPa (CONFIG_PRESSURE_THRESHOLD_HPA)
+ *   - Illuminance: ±5% relative or ±50 lux absolute (CONFIG_ILLUMINANCE_THRESHOLD_*)
+ *   - UV Index: ±0.5 (CONFIG_UV_THRESHOLD_INDEX)
+ *
+ * Notes:
+ *   - Timestamp differences are ignored (not a sensor change)
+ *   - NaN values are handled via validity flags
+ *   - Returns true if either sensor changes OR validity changes (OR logic)
+ */
+bool hasSignificantChange(const SensorReadings* prev, const SensorReadings* curr);
+
+/**
  * Format sensor readings as JSON string
  *
  * Parameters:
