@@ -92,10 +92,21 @@
 // RTC (REAL-TIME CLOCK) CONFIGURATION
 // ============================================================================
 
-// RTC synchronization interval (milliseconds)
-// Non-blocking sync with WiFiNINA.getTime() every 60 seconds
-#ifndef CONFIG_RTC_SYNC_INTERVAL_MS
-#define CONFIG_RTC_SYNC_INTERVAL_MS 60000
+// RTC synchronization intervals (adaptive strategy)
+// Initial sync phase: aggressive 60-second syncing to establish stable time
+#ifndef CONFIG_RTC_SYNC_INTERVAL_INITIAL_MS
+#define CONFIG_RTC_SYNC_INTERVAL_INITIAL_MS 60000  // 60 seconds
+#endif
+
+// Stable sync phase: infrequent 30-minute syncing after initial stability
+// RTC drift @ 20ppm over 30min = ~0.036 seconds (negligible for telemetry)
+#ifndef CONFIG_RTC_SYNC_INTERVAL_STABLE_MS
+#define CONFIG_RTC_SYNC_INTERVAL_STABLE_MS 1800000  // 30 minutes
+#endif
+
+// Number of successful syncs required before switching to stable interval
+#ifndef CONFIG_RTC_SYNC_STABLE_COUNT
+#define CONFIG_RTC_SYNC_STABLE_COUNT 3
 #endif
 
 // Bootstrap timestamp for RTC initialization before network sync
@@ -106,9 +117,9 @@
 #endif
 
 // RTC staleness threshold (milliseconds)
-// Mark RTC as "stale" if last sync was >5 minutes ago
+// Increased to 45 minutes to align with 30-minute stable sync interval
 #ifndef CONFIG_RTC_STALE_THRESHOLD_MS
-#define CONFIG_RTC_STALE_THRESHOLD_MS 300000
+#define CONFIG_RTC_STALE_THRESHOLD_MS 2700000  // 45 minutes
 #endif
 
 // ============================================================================
