@@ -44,8 +44,10 @@ static const uint32_t CONFIG_FETCH_RETRY_INTERVAL = 30000;  // Retry every 30s
 
 static bool mqtt_initialized = false;
 static uint32_t last_publish_time = 0;
+static uint32_t last_change_check_time = 0;      // For change detection timing
+static SensorReadings previous_readings = {0};   // For change comparison
+static bool first_publish = true;                // Force first publish
 
-static SensorReadings sensor_data;
 static bool sensors_initialized = false;
 
 // ============================================================================
@@ -176,44 +178,98 @@ void loop(void)
     // Maintain MQTT connection
     maintainMQTT();
 
-    // Calculate publish interval from config (poll_frequency_sec to milliseconds)
-    uint32_t publish_interval_ms = mqtt_config.poll_frequency_sec * 1000;
+    // ====================================================================
+    // DUAL-INTERVAL PUBLISHING LOGIC:
+    // 1. Change Detection: Every poll_frequency_sec, check for significant changes
+    // 2. Heartbeat: Every heartbeat_frequency_sec, force publish regardless
+    // ====================================================================
 
-    // Publish sensor data at regular intervals (respecting config frequency)
-    if (isMQTTReady() && now - last_publish_time >= publish_interval_ms)
+    uint32_t poll_interval_ms = mqtt_config.poll_frequency_sec * 1000;
+    uint32_t heartbeat_interval_ms = mqtt_config.heartbeat_frequency_sec * 1000;
+
+    // Determine which condition triggered this cycle
+    bool should_check_change = (now - last_change_check_time >= poll_interval_ms);
+    bool should_force_publish = (now - last_publish_time >= heartbeat_interval_ms);
+
+    if (isMQTTReady() && (should_check_change || should_force_publish))
     {
-      last_publish_time = now;
+      SensorReadings current_readings;
+      char payload[256];
 
-      char payload[256];  // Sensor data JSON (device_id in topic, not payload)
-
-      // Read and publish sensor data if available
-      if (sensors_initialized && readSensors(&sensor_data))
+      // Read sensor data
+      if (sensors_initialized && readSensors(&current_readings))
       {
-        // Format sensor readings as JSON
-        if (formatSensorJSON(&sensor_data, payload, sizeof(payload)))
+        bool publish = false;
+
+        // CASE 1: Heartbeat interval elapsed - force publish regardless of changes
+        if (should_force_publish)
         {
-          // sensor_json is already in correct format
+          publish = true;
+          DEBUG_PRINTLN(F("[MQTT] Publishing (heartbeat)"));
         }
-        else
+        // CASE 2: Change check interval elapsed - check for significant changes
+        else if (should_check_change)
         {
-          // JSON formatting failed, fall back to minimal payload
-          snprintf(payload, sizeof(payload),
-                   "{\"timestamp\":%lu}",
-                   now / 1000);
+          last_change_check_time = now;
+
+          if (first_publish || hasSignificantChange(&previous_readings, &current_readings))
+          {
+            publish = true;
+            DEBUG_PRINTLN(F("[MQTT] Publishing (change detected)"));
+          }
+          else
+          {
+            DEBUG_PRINTLN(F("[MQTT] Skipped (no significant change)"));
+          }
+        }
+
+        // Publish if triggered
+        if (publish)
+        {
+          // Format sensor readings as JSON
+          if (formatSensorJSON(&current_readings, payload, sizeof(payload)))
+          {
+            // payload is already in correct format
+          }
+          else
+          {
+            // JSON formatting failed, fall back to minimal payload
+            snprintf(payload, sizeof(payload),
+                     "{\"timestamp\":%lu}",
+                     current_readings.timestamp);
+          }
+
+          MQTTStatus pub_status = publishToMQTT(nullptr, payload);
+          if (pub_status != MQTT_ERROR)
+          {
+            // Update state only on successful publish
+            last_publish_time = now;
+            previous_readings = current_readings;
+            first_publish = false;
+          }
+          else
+          {
+            DEBUG_PRINTLN(F("⚠ Failed to publish to MQTT (will retry)"));
+          }
         }
       }
       else
       {
-        // Sensors not available or read failed, publish timestamp only
-        snprintf(payload, sizeof(payload),
-                 "{\"timestamp\":%lu}",
-                 now / 1000);
-      }
+        // Sensors not available or read failed
+        if (should_force_publish)
+        {
+          // Still publish on heartbeat with timestamp only
+          snprintf(payload, sizeof(payload),
+                   "{\"timestamp\":%lu}",
+                   now / 1000);
 
-      MQTTStatus pub_status = publishToMQTT(nullptr, payload);
-      if (pub_status == MQTT_ERROR)
-      {
-        DEBUG_PRINTLN(F("⚠ Failed to publish to MQTT"));
+          MQTTStatus pub_status = publishToMQTT(nullptr, payload);
+          if (pub_status != MQTT_ERROR)
+          {
+            last_publish_time = now;
+            first_publish = false;
+          }
+        }
       }
     }
     return;  // Skip remaining config discovery code

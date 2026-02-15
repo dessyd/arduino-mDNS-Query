@@ -254,6 +254,107 @@ bool areSensorsReady(void)
 }
 
 /**
+ * Check if sensor readings have changed significantly
+ */
+bool hasSignificantChange(const SensorReadings* prev, const SensorReadings* curr)
+{
+  if (!prev || !curr)
+  {
+    return true;  // Invalid pointers = treat as significant change (force publish)
+  }
+
+  // ========================================================================
+  // Check Temperature Change
+  // ========================================================================
+  if (prev->temp_valid && curr->temp_valid)
+  {
+    if (fabs(curr->temperature - prev->temperature) >= CONFIG_TEMP_THRESHOLD_CELSIUS)
+    {
+      return true;
+    }
+  }
+
+  // ========================================================================
+  // Check Humidity Change
+  // ========================================================================
+  if (prev->humidity_valid && curr->humidity_valid)
+  {
+    if (fabs(curr->humidity - prev->humidity) >= CONFIG_HUMIDITY_THRESHOLD_PERCENT)
+    {
+      return true;
+    }
+  }
+
+  // ========================================================================
+  // Check Pressure Change
+  // ========================================================================
+  if (prev->pressure_valid && curr->pressure_valid)
+  {
+    if (fabs(curr->pressure - prev->pressure) >= CONFIG_PRESSURE_THRESHOLD_HPA)
+    {
+      return true;
+    }
+  }
+
+  // ========================================================================
+  // Check Illuminance Change (both relative % and absolute lux thresholds)
+  // ========================================================================
+  if (prev->light_valid && curr->light_valid)
+  {
+    // Check absolute difference first (for very low light levels)
+    float abs_diff = fabs(curr->illuminance - prev->illuminance);
+    if (abs_diff >= CONFIG_ILLUMINANCE_THRESHOLD_ABS_LUX)
+    {
+      return true;
+    }
+
+    // Check relative percentage change (avoid division by zero)
+    if (prev->illuminance > CONFIG_ILLUMINANCE_THRESHOLD_ABS_LUX)
+    {
+      float relative_change = (abs_diff / prev->illuminance) * 100.0;
+      if (relative_change >= CONFIG_ILLUMINANCE_THRESHOLD_PERCENT)
+      {
+        return true;
+      }
+    }
+  }
+
+  // ========================================================================
+  // Check UV Index Change (if available)
+  // ========================================================================
+  if (prev->uv_valid && curr->uv_valid)
+  {
+    // Only compare if both readings are valid and available (>= 0)
+    if (prev->uv_index >= 0 && curr->uv_index >= 0)
+    {
+      if (fabs(curr->uv_index - prev->uv_index) >= CONFIG_UV_THRESHOLD_INDEX)
+      {
+        return true;
+      }
+    }
+  }
+
+  // ========================================================================
+  // Check Validity Flag Changes (sensor recovery or failure)
+  // ========================================================================
+  if (prev->temp_valid != curr->temp_valid)
+    return true;
+  if (prev->humidity_valid != curr->humidity_valid)
+    return true;
+  if (prev->pressure_valid != curr->pressure_valid)
+    return true;
+  if (prev->light_valid != curr->light_valid)
+    return true;
+  if (prev->uv_valid != curr->uv_valid)
+    return true;
+
+  // ========================================================================
+  // No significant changes detected
+  // ========================================================================
+  return false;
+}
+
+/**
  * Format sensor readings as JSON
  */
 char* formatSensorJSON(const SensorReadings* readings,
