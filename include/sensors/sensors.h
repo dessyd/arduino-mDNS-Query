@@ -135,4 +135,34 @@ bool hasSignificantChange(const SensorReadings* prev, const SensorReadings* curr
 char* formatSensorJSON(const SensorReadings* readings,
                        char* buffer, size_t buffer_size);
 
+/**
+ * Format only changed sensor values as JSON string
+ *
+ * Compares current readings against previous readings and includes only
+ * the fields that have changed significantly. Used for optimized publishing
+ * on change detection (vs. heartbeat which publishes all fields).
+ *
+ * Parameters:
+ *   - prev: Pointer to previous SensorReadings struct (baseline for comparison)
+ *   - curr: Pointer to current SensorReadings struct (new readings)
+ *   - buffer: Output buffer for JSON string
+ *   - buffer_size: Maximum buffer size in bytes
+ *
+ * Returns:
+ *   Pointer to buffer on success
+ *   NULL if invalid parameters or buffer too small
+ *
+ * Format (example with only temperature and humidity changed):
+ *   {"temperature_celsius":24.5,"humidity_percent":52.3,"timestamp":1707840015}
+ *
+ * Notes:
+ *   - Includes only fields that changed beyond threshold or validity changed
+ *   - Always includes timestamp
+ *   - Reduces MQTT payload for change-triggered publishes
+ *   - Uses same thresholds as hasSignificantChange()
+ *   - If no fields changed, still includes timestamp
+ */
+char* formatChangedSensorJSON(const SensorReadings* prev, const SensorReadings* curr,
+                              char* buffer, size_t buffer_size);
+
 #endif  // SENSORS_H
