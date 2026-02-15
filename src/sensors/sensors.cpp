@@ -419,3 +419,164 @@ char* formatSensorJSON(const SensorReadings* readings,
   // Buffer overflow
   return NULL;
 }
+
+/**
+ * Format only changed sensor values as JSON
+ *
+ * Compares current against previous and includes only fields that changed
+ * significantly. Used for optimized change-triggered publishing.
+ */
+char* formatChangedSensorJSON(const SensorReadings* prev, const SensorReadings* curr,
+                              char* buffer, size_t buffer_size)
+{
+  if (!prev || !curr || !buffer || buffer_size < 50)
+  {
+    return NULL;
+  }
+
+  int offset = 0;
+  buffer[offset++] = '{';
+  bool added_field = false;
+
+  // Helper macro to add comma before field if needed
+  #define ADD_COMMA() if (added_field) { buffer[offset++] = ','; }
+
+  // Check Temperature Change
+  if (prev->temp_valid && curr->temp_valid)
+  {
+    if (fabs(curr->temperature - prev->temperature) >= CONFIG_TEMP_THRESHOLD_CELSIUS)
+    {
+      ADD_COMMA();
+      offset += snprintf(buffer + offset, buffer_size - offset,
+                         "\"temperature_celsius\":%.1f", curr->temperature);
+      added_field = true;
+    }
+  }
+  else if (prev->temp_valid != curr->temp_valid && curr->temp_valid)
+  {
+    // Temperature sensor recovered
+    ADD_COMMA();
+    offset += snprintf(buffer + offset, buffer_size - offset,
+                       "\"temperature_celsius\":%.1f", curr->temperature);
+    added_field = true;
+  }
+
+  // Check Humidity Change
+  if (prev->humidity_valid && curr->humidity_valid)
+  {
+    if (fabs(curr->humidity - prev->humidity) >= CONFIG_HUMIDITY_THRESHOLD_PERCENT)
+    {
+      ADD_COMMA();
+      offset += snprintf(buffer + offset, buffer_size - offset,
+                         "\"humidity_percent\":%.1f", curr->humidity);
+      added_field = true;
+    }
+  }
+  else if (prev->humidity_valid != curr->humidity_valid && curr->humidity_valid)
+  {
+    // Humidity sensor recovered
+    ADD_COMMA();
+    offset += snprintf(buffer + offset, buffer_size - offset,
+                       "\"humidity_percent\":%.1f", curr->humidity);
+    added_field = true;
+  }
+
+  // Check Pressure Change
+  if (prev->pressure_valid && curr->pressure_valid)
+  {
+    if (fabs(curr->pressure - prev->pressure) >= CONFIG_PRESSURE_THRESHOLD_HPA)
+    {
+      ADD_COMMA();
+      offset += snprintf(buffer + offset, buffer_size - offset,
+                         "\"pressure_millibar\":%.1f", curr->pressure);
+      added_field = true;
+    }
+  }
+  else if (prev->pressure_valid != curr->pressure_valid && curr->pressure_valid)
+  {
+    // Pressure sensor recovered
+    ADD_COMMA();
+    offset += snprintf(buffer + offset, buffer_size - offset,
+                       "\"pressure_millibar\":%.1f", curr->pressure);
+    added_field = true;
+  }
+
+  // Check Illuminance Change (relative % and absolute thresholds)
+  if (prev->light_valid && curr->light_valid)
+  {
+    float abs_diff = fabs(curr->illuminance - prev->illuminance);
+    bool changed = false;
+
+    if (abs_diff >= CONFIG_ILLUMINANCE_THRESHOLD_ABS_LUX)
+    {
+      changed = true;
+    }
+    else if (prev->illuminance > CONFIG_ILLUMINANCE_THRESHOLD_ABS_LUX)
+    {
+      float relative_change = (abs_diff / prev->illuminance) * 100.0;
+      if (relative_change >= CONFIG_ILLUMINANCE_THRESHOLD_PERCENT)
+      {
+        changed = true;
+      }
+    }
+
+    if (changed)
+    {
+      ADD_COMMA();
+      offset += snprintf(buffer + offset, buffer_size - offset,
+                         "\"illuminance_lux\":%.1f", curr->illuminance);
+      added_field = true;
+    }
+  }
+  else if (prev->light_valid != curr->light_valid && curr->light_valid)
+  {
+    // Light sensor recovered
+    ADD_COMMA();
+    offset += snprintf(buffer + offset, buffer_size - offset,
+                       "\"illuminance_lux\":%.1f", curr->illuminance);
+    added_field = true;
+  }
+
+  // Check UV Index Change
+  if (prev->uv_valid && curr->uv_valid)
+  {
+    if (prev->uv_index >= 0 && curr->uv_index >= 0)
+    {
+      if (fabs(curr->uv_index - prev->uv_index) >= CONFIG_UV_THRESHOLD_INDEX)
+      {
+        ADD_COMMA();
+        offset += snprintf(buffer + offset, buffer_size - offset,
+                           "\"uv_index\":%.1f", curr->uv_index);
+        added_field = true;
+      }
+    }
+  }
+  else if (prev->uv_valid != curr->uv_valid && curr->uv_valid)
+  {
+    // UV sensor recovered
+    ADD_COMMA();
+    offset += snprintf(buffer + offset, buffer_size - offset,
+                       "\"uv_index\":%.1f", curr->uv_index);
+    added_field = true;
+  }
+
+  // Always add timestamp
+  if (added_field)
+  {
+    buffer[offset++] = ',';
+  }
+  offset += snprintf(buffer + offset, buffer_size - offset,
+                     "\"timestamp\":%lu", curr->timestamp);
+
+  // Close JSON
+  if (offset + 1 < buffer_size)
+  {
+    buffer[offset++] = '}';
+    buffer[offset] = '\0';
+    return buffer;
+  }
+
+  // Buffer overflow
+  return NULL;
+  #undef ADD_COMMA
+}

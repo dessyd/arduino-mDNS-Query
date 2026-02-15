@@ -200,11 +200,13 @@ void loop(void)
       if (sensors_initialized && readSensors(&current_readings))
       {
         bool publish = false;
+        bool is_heartbeat = false;
 
         // CASE 1: Heartbeat interval elapsed - force publish regardless of changes
         if (should_force_publish)
         {
           publish = true;
+          is_heartbeat = true;
           DEBUG_PRINTLN(F("[MQTT] Publishing (heartbeat)"));
         }
         // CASE 2: Change check interval elapsed - check for significant changes
@@ -215,6 +217,7 @@ void loop(void)
           if (first_publish || hasSignificantChange(&previous_readings, &current_readings))
           {
             publish = true;
+            is_heartbeat = false;
             DEBUG_PRINTLN(F("[MQTT] Publishing (change detected)"));
           }
           else
@@ -226,17 +229,29 @@ void loop(void)
         // Publish if triggered
         if (publish)
         {
-          // Format sensor readings as JSON
-          if (formatSensorJSON(&current_readings, payload, sizeof(payload)))
+          // Format sensor readings based on publish type:
+          // - Heartbeat: All sensor values
+          // - Change: Only changed values + timestamp (optimization)
+          if (is_heartbeat)
           {
-            // payload is already in correct format
+            if (!formatSensorJSON(&current_readings, payload, sizeof(payload)))
+            {
+              // JSON formatting failed, fall back to minimal payload
+              snprintf(payload, sizeof(payload),
+                       "{\"timestamp\":%lu}",
+                       current_readings.timestamp);
+            }
           }
           else
           {
-            // JSON formatting failed, fall back to minimal payload
-            snprintf(payload, sizeof(payload),
-                     "{\"timestamp\":%lu}",
-                     current_readings.timestamp);
+            // Change detection: Only publish changed fields
+            if (!formatChangedSensorJSON(&previous_readings, &current_readings, payload, sizeof(payload)))
+            {
+              // JSON formatting failed, fall back to minimal payload
+              snprintf(payload, sizeof(payload),
+                       "{\"timestamp\":%lu}",
+                       current_readings.timestamp);
+            }
           }
 
           MQTTStatus pub_status = publishToMQTT(nullptr, payload);
