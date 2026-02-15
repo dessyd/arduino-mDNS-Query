@@ -347,6 +347,9 @@ void loop(void)
         DEBUG_PRINT(F("Poll Interval: "));
         DEBUG_PRINT(mqtt_config.poll_frequency_sec);
         DEBUG_PRINTLN(F(" seconds"));
+        DEBUG_PRINT(F("Heartbeat Interval: "));
+        DEBUG_PRINT(mqtt_config.heartbeat_frequency_sec);
+        DEBUG_PRINTLN(F(" seconds"));
         DEBUG_PRINTLN(F(""));
 
         // Initialize MQTT connection

@@ -20,7 +20,7 @@
 
 ## Optimization: Eliminate Duplicate Config Logging
 
-**Status**: Pending
+**Status**: ✅ COMPLETED
 
 **Description**: The configuration is currently printed twice during startup:
 
@@ -29,11 +29,9 @@
 
 **Related Code**:
 
-- Configuration retrieval/parsing logic
-- Startup serial output
+- Configuration retrieval/parsing logic in `config_fetch.cpp`
+- Startup serial output in `main.cpp`
 
-**Rationale**: Reduces serial output verbosity and console clutter. Choose either detailed step-by-step logging OR final summary, not both.
+**Solution**: Removed detailed field-by-field logging from `parseConfigJSON()` and kept only the summary display in `main.cpp` initialization. Added minimal confirmation message that parsing succeeded.
 
-**Impact**: Cleaner startup output, easier to read logs.
-
-**Impact**: Cleaner startup output, easier to read logs.
+**Impact**: Cleaner startup output, reduced serial verbosity, easier to read logs.
