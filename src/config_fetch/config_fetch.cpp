@@ -208,18 +208,6 @@ MQTTConfig parseConfigJSON(const char *json_response)
   }
 
   DEBUG_PRINTLN(F("✓ Configuration parsed successfully"));
-  DEBUG_PRINT(F("  MQTT Broker: "));
-  DEBUG_PRINTLN(mqtt_config.mqtt_broker);
-  DEBUG_PRINT(F("  MQTT Port: "));
-  DEBUG_PRINTLN(mqtt_config.mqtt_port);
-  DEBUG_PRINT(F("  Topic: "));
-  DEBUG_PRINTLN(mqtt_config.mqtt_topic);
-  DEBUG_PRINT(F("  Poll Frequency: "));
-  DEBUG_PRINT(mqtt_config.poll_frequency_sec);
-  DEBUG_PRINTLN(F(" seconds"));
-  DEBUG_PRINT(F("  Heartbeat Frequency: "));
-  DEBUG_PRINT(mqtt_config.heartbeat_frequency_sec);
-  DEBUG_PRINTLN(F(" seconds"));
 
   // ========================================================================
   // Validate heartbeat_frequency_sec >= poll_frequency_sec
