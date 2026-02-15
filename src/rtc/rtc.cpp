@@ -12,9 +12,11 @@ static RTCZero rtc;
 static RTCStatus rtc_status = RTC_UNINITIALIZED;
 static uint32_t last_sync_time = 0;
 static uint32_t last_sync_timestamp = 0;
+static uint32_t successful_sync_count = 0;  // Track successful syncs for adaptive interval
 
-// Note: Sync interval and bootstrap timestamp are now in arduino_configs.h
-// CONFIG_RTC_CONFIG_RTC_SYNC_INTERVAL_MS and CONFIG_RTC_CONFIG_RTC_BOOTSTRAP_TIMESTAMP
+// Note: Sync intervals and bootstrap timestamp are now in arduino_configs.h
+// CONFIG_RTC_SYNC_INTERVAL_INITIAL_MS, CONFIG_RTC_SYNC_INTERVAL_STABLE_MS,
+// CONFIG_RTC_SYNC_STABLE_COUNT, and CONFIG_RTC_BOOTSTRAP_TIMESTAMP
 
 // ============================================================================
 // PUBLIC API IMPLEMENTATION
@@ -46,13 +48,26 @@ RTCStatus initRTC(void)
 
 /**
  * Synchronize RTC with network time from WiFiNINA
+ * Uses adaptive interval strategy:
+ *   - Initial phase (first 3 syncs): 60-second interval
+ *   - Stable phase (after 3 syncs): 30-minute interval
  */
 RTCStatus syncRTCWithNetwork(void)
 {
   uint32_t now = millis();
 
-  // Rate-limit sync attempts (only sync every CONFIG_RTC_SYNC_INTERVAL_MS)
-  if (now - last_sync_time < CONFIG_RTC_SYNC_INTERVAL_MS)
+  // Determine sync interval based on stability
+  uint32_t sync_interval_ms;
+  if (successful_sync_count < CONFIG_RTC_SYNC_STABLE_COUNT) {
+    // Initial phase: sync frequently to establish accurate time
+    sync_interval_ms = CONFIG_RTC_SYNC_INTERVAL_INITIAL_MS;
+  } else {
+    // Stable phase: sync infrequently (RTC drift is minimal ~0.036s/30min)
+    sync_interval_ms = CONFIG_RTC_SYNC_INTERVAL_STABLE_MS;
+  }
+
+  // Rate-limit sync attempts (adaptive interval)
+  if (now - last_sync_time < sync_interval_ms)
   {
     return rtc_status;  // Too soon to sync again, return current status
   }
@@ -78,9 +93,17 @@ RTCStatus syncRTCWithNetwork(void)
   last_sync_time = now;
   last_sync_timestamp = wifi_time;
   rtc_status = RTC_SYNCED;
+  successful_sync_count++;  // Increment successful sync counter
 
   DEBUG_PRINT(F("✓ RTC synced with network time: "));
-  DEBUG_PRINTLN(wifi_time);
+  DEBUG_PRINT(wifi_time);
+  DEBUG_PRINT(F(" (sync #"));
+  DEBUG_PRINT(successful_sync_count);
+  if (successful_sync_count >= CONFIG_RTC_SYNC_STABLE_COUNT) {
+    DEBUG_PRINTLN(F(", stable interval)"));
+  } else {
+    DEBUG_PRINTLN(F(", initial phase)"));
+  }
 
   return RTC_SYNCED;
 }
